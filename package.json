@@ -1,0 +1,27 @@
+{
+  "name": "candlelightjs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ieb/candleLightJS.git"
+  },
+  "keywords": [
+    "candleLight",
+    "CAN",
+    "NMEA2000"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ieb/candleLightJS/issues"
+  },
+  "homepage": "https://github.com/ieb/candleLightJS#readme",
+  "dependencies": {
+    "usb": "^2.11.0"
+  }
+}
