@@ -1,5 +1,5 @@
 const usb = require('usb');
-const { GSUsb } = require('./gs_usb.js');
+const { GSUsb } = require('./index.js');
 
 // https://github.com/jxltom/gs_usb/tree/master/gs_usb
 // /Users/ieb/timefields/candelLite/gs_usb
@@ -30,6 +30,13 @@ showDevices().then( async () => {
     const gs_usb = new GSUsb();
     await gs_usb.start();
     console.log("Started GS USB");
+    await gs_usb.identify(1);
+    await gs_usb.setBitrate(250000);
+
+    console.log("BitRate Set to 250000");
+    console.log("getStartOfFrameTimestampUs", await gs_usb.getStartOfFrameTimestampUs());
+    console.log("getDeviceInfo", await gs_usb.getDeviceInfo());
+    await gs_usb.identify(0);
     await gs_usb.stop();
     console.log("Stopped GS USB");
   } catch (err) {

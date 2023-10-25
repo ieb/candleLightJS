@@ -80,15 +80,79 @@ class GSUsb {
         start: 1
     };
 
-    static _GS_USB_BREQ = {
-        host_format: 0,
-        bittiming: 1,
-        mode: 2,
-        berr: 3,
-        bt_const: 4,
-        device_config: 5
+
+    static  _GS_USB_BREQ = {
+        HOST_FORMAT: {
+            request: 0, // read only, bit may not be implemented
+            len: 4,
+            read: true
+        },
+        BITTIMING: {
+            request: 1, // probably write only
+            len: 20,
+            write: true
+        },
+        MODE: {
+            request: 2, // probably write only
+            len: 8,
+            write: true
+        },
+        BERR: {
+            request: 3, // probably not implemented
+            len: undefined
+        },
+        BT_CONST: {
+            request: 4, // read only
+            len: 40,
+            read: true
+        },
+        DEVICE_CONFIG: {
+            request: 5, // readonly
+            len: 12,
+            read: true
+        },
+        TIMESTAMP: {
+            request: 6, // readonly
+            len: 4,
+            read: true
+        },
+        IDENTIFY: {
+            request: 7, // write only, flashes led
+            len: 4,
+            write: true
+        },
+        GET_USER_ID: {
+            request: 8,    //not implemented
+            len: undefined
+        },
+        SET_USER_ID: {
+            request: 9,   //not implemented
+            len: undefined
+        },
+        DATA_BITTIMING: {
+            request: 10, // not implemented
+            len: undefined
+        },
+        BT_CONST_EXT: { // not implemented
+            request: 11,
+            len: 72
+        },
+        SET_TERMINATION: {
+            request: 12, // write only
+            len:  4,
+            write: true
+        },
+        GET_TERMINATION: {
+            request: 13, // readonly
+            len: 4,
+            read: true
+        },
+        GET_STATE: {
+            request: 14, // not implemented
+            len: undefined
+        }
     };
-    
+
 
     constructor() {
         this.gs_usb = undefined;
@@ -106,7 +170,8 @@ class GSUsb {
         console.log("Found  ",this.gs_usb);
         await this.gs_usb.open();
         await this.gs_usb.reset();
-        this.capabilities = this.readDeviceCapabilities();
+        this.capabilities = await this.readDeviceCapabilities();
+
 
         this.device_flags = (flags || 0) 
             &  this.capabilities.features
@@ -150,45 +215,34 @@ class GSUsb {
         out.setUint32(0,0x00, true); // reset 
         out.setUint32(4,0x00, true); // no flags
 
-
-
-        const result = await this.gs_usb.controlTransferOut({
-            requestType: 'vendor', // 0x40
-            recipient: 'interface', // 0x01 ,, write 0x41
-            request: 0x02, // mode request
-            value: 0,  // channel
-            index: 0
-        }, out.buffer);
-        if ( result.status === "ok" ) {
+        if ( await this._controlWrite(GSUsb._GS_USB_BREQ.MODE, out.buffer)) {
             console.log("Stopped Ok");
         } else {
             console.log("Failed to stop",result);
         }
-
         await this.gs_usb.close();
     }
 
+    async identify(led) {
+        const out = new DataView(new ArrayBuffer(4));
+        out.setUint32(0,led);
+        await this._controlWrite(GSUsb._GS_USB_BREQ.IDENTIFY, out.buffer);
+    }
+
     async readDeviceCapabilities() {
-        // read from the device, https://developer.mozilla.org/en-US/docs/Web/API/USBInTransferResult
-        const result = await this.gs_usb.controlTransferIn({
-                requestType: 'vendor', // 0x40
-                recipient: 'interface', // 0x01  read from the device = 0x80 | 0x40 | 0x01 = 0x61
-                request: 0x04, // bt_const
-                value: 0,  // channel
-                index: 0
-            }, 40);
-        if ( result.status === "ok" ) {
+        const data = await this._controlRead(GSUsb._GS_USB_BREQ.BT_CONST);
+        if ( data != undefined ) {
             const capabilities = {
-                features: result.data.getUint32(0,true),
-                fclk_can: result.data.getUint32(4,true),
-                tseg1_min: result.data.getUint32(8,true),
-                tseg1_max: result.data.getUint32(12,true),
-                tseg2_min: result.data.getUint32(16,true),
-                tseg2_max: result.data.getUint32(20,true),
-                sjw_max: result.data.getUint32(24,true),
-                brp_min: result.data.getUint32(28,true),
-                brp_max: result.data.getUint32(32,true),
-                brp_inc: result.data.getUint32(36,true)
+                features: data.getUint32(0,true),
+                fclk_can: data.getUint32(4,true),
+                tseg1_min: data.getUint32(8,true),
+                tseg1_max: data.getUint32(12,true),
+                tseg2_min: data.getUint32(16,true),
+                tseg2_max: data.getUint32(20,true),
+                sjw_max: data.getUint32(24,true),
+                brp_min: data.getUint32(28,true),
+                brp_max: data.getUint32(32,true),
+                brp_inc: data.getUint32(36,true)
             }
             console.log("Got Capabilities ", capabilities);
             return capabilities;
@@ -244,7 +298,7 @@ class GSUsb {
                 case 10000: timing.brp = 500; break;
                 case 20000: timing.brp = 250; break;
                 case 50000: timing.brp = 100; break;
-                case 83333: timing.brp = 60; break; \
+                case 83333: timing.brp = 60; break; 
                 case 100000: timing.brp = 50; break;
                 case 125000: timing.brp = 40; break; 
                 case 250000: timing.brp = 20; break;
@@ -290,17 +344,10 @@ class GSUsb {
         out.setUint32(8, timing.phase_seg2, true);
         out.setUint32(12, timing.sjw, true);
         out.setUint32(16, timing.brp, true);
-        const result = await this.gs_usb.controlTransferOut({
-            requestType: 'vendor', // 0x40
-            recipient: 'interface', // 0x01 ,, write 0x41
-            request: 0x01, // set bit timing request
-            value: 0, // channel
-            index: 0
-        }, out.buffer);
 
-        if ( result.status === "ok" ) {
+        if ( await this._controlWrite(GSUsb._GS_USB_BREQ.BITTIMING, out.buffer) ) {
             console.log("Set timing Ok");
-            this.capabilities = this.readDeviceCapabilities();
+            this.capabilities = await this.readDeviceCapabilities();
             return true;
         } else {
             console.log("Failed to set timing",result);
@@ -308,130 +355,91 @@ class GSUsb {
         }
     }
 
-    async getTiming() {
-        const result = await this.gs_usb.controlTransferIn({
-            requestType: 'vendor', // 0x40
-            recipient: 'interface', // 0x01 ,, write 0x41
-            request: 0x01, // set bit timing request
-            value: 0,  // channel
-            index: 0
-        }, 20);
-        if ( result.status == "ok") {
-            const timing = {
-                prop_seg: result.data.getUint32(0, true),
-                phase_seg1: result.data.getUint32(4, true),
-                phase_seg2: result.data.getUint32(8, true),
-                sjw: result.data.getUint32(12, true),
-                brp: result.data.getUint32(16, true)
-            }
-            console.log("Got Timing info ", timing);
-            return timing;
-        } else {
-            console.log("Failed to get timing",result);
-            return undefined;
 
-        }
-    }
-    async getMode() {
-        const result = await this.gs_usb.controlTransferIn({
-            requestType: 'vendor', // 0x40
-            recipient: 'interface', // 0x01 ,, write 0x41
-            request: 0x02, // mode
-            value: 0,  // channel
-            index: 0
-        }, 8);
-        if ( result.status == "ok") {
-            const mode = {
-                mode: result.data.getUint32(0, true),
-                flags: result.data.getUint32(4, true)
-            }
-            console.log("Got Mode info ", mode);
-            return timing;
-        } else {
-            console.log("Failed to get mode",result);
-            return undefined;
 
-        }
-    }
 
     async getStartOfFrameTimestampUs() {
-        const result = await this.gs_usb.controlTransferIn({
-            requestType: 'vendor', // 0x40
-            recipient: 'interface', // 0x01 ,, write 0x41
-            request: 0x06, // timestamp
-            value: 0,  // channel
-            index: 0
-        }, 4);
-        if ( result.status == "ok") {
-            console.log("Got Frame TS info ", result.data.getUint32(0, true));
-            return result.data.getUint32(0, true);
+        const data = await this._controlRead(GSUsb._GS_USB_BREQ.TIMESTAMP);
+        if (  data !== undefined ) {
+            console.log("Got Frame TS info ", data.getUint32(0, true));
+            return data.getUint32(0, true);
         } else {
-            console.log("Failed to get Timestamp",result);
-            return undefined;
-        }
-    }
-    async getIdentifyMode() {
-        const result = await this.gs_usb.controlTransferIn({
-            requestType: 'vendor', // 0x40
-            recipient: 'interface', // 0x01 ,, write 0x41
-            request: 0x07, // identify mode
-            value: 0,  // channel
-            index: 0
-        }, 4);
-        if ( result.status == "ok") {
-            console.log("Got Identify mode info ", result.data.getUint32(0, true));
-            return result.data.getUint32(0, true);
-        } else {
-            console.log("Failed to get identify mode",result);
+            console.log("Failed to get Timestamp");
             return undefined;
         }
     }
 
-    async getTermination() {
-        const result = await this.gs_usb.controlTransferIn({
-            requestType: 'vendor', // 0x40
-            recipient: 'interface', // 0x01 ,, write 0x41
-            request: 0x09, // get termination
-            value: 0,  // channel
-            index: 0
-        }, 4);
-        if ( result.status == "ok") {
-            console.log("Got TerminationState ", result.data.getInt32(0, true));
-            return result.data.getInt32(0, true);
-        } else {
-            console.log("Failed to get identify mode",result);
-            return undefined;
+
+    async _controlRead(req) {
+        try {
+            const result = await this.gs_usb.controlTransferIn({
+                requestType: 'vendor', // 0x40
+                recipient: 'interface', // 0x01 ,, write 0x41
+                request: req.request, // identify mode
+                value: 0,  // channel
+                index: 0
+            }, req.len);
+            if ( result.status == "ok") {
+                return result.data;
+            } else {
+                console.log("Failed to read data", req, result);
+                return undefined;
+            }
+        } catch (e) {
+            if ( req.read ) {
+                console.log("Read failed, firmware bug perhaps ", e);
+            } else {
+                console.log("Read failed, read not supported ", e);
+            }
+            return undefined;                    
         }
     }
+    async _controlWrite(req, buffer) {
+        try {
+            const result = await this.gs_usb.controlTransferOut({
+                requestType: 'vendor', // 0x40
+                recipient: 'interface', // 0x01 ,, write 0x41
+                request: req.request, // mode request
+                value: 0,  // channel
+                index: 0
+            }, buffer);
+            if ( result.status === "ok" ) {
+                return true;
+            } else {
+                console.log("Failed to write",result);
+                return false;
+            }
+        } catch (e) {
+            if ( req.write ) {
+                console.log("Write failed, firmware bug perhaps ", e);
+            } else {
+                console.log("Write failed, read not supported ", e);
+            }
+            return undefined;                    
+        }
 
-    async 
+    }
 
     getUSBDevice() {
         return this.gs_usb;
     }
 
     async getDeviceInfo() {
-        const result = await this.gs_usb.controlTransferIn({
-                requestType: 'vendor', // 0x40
-                recipient: 'interface', // 0x01  read from the device = 0x80 | 0x40 | 0x01 = 0x61
-                request: 0x05, // config
-                value: 0,
-                index: 0
-            }, 12);
-        if ( result.status == "ok") {
+        const data = await this._controlRead(GSUsb._GS_USB_BREQ.DEVICE_CONFIG);
+        if ( data != undefined ) {
             const deviceInfo = {
-                reserved1: result.data.getUint8(0, true),
-                reserved2: result.data.getUint8(1, true),
-                reserved3: result.data.getUint8(2, true),
-                icount: result.data.getUint8(3, true),
-                fw_version: 0.1*result.data.getUint32(4, true),
-                hw_version: 0.1*result.data.getUint32(8, true)
+                reserved1: data.getUint8(0, true),
+                reserved2: data.getUint8(1, true),
+                reserved3: data.getUint8(2, true),
+                icount: data.getUint8(3, true),
+                fw_version: data.getUint32(4, true),
+                hw_version: data.getUint32(8, true)
             }
             console.log("Got device info as ", deviceInfo);
             return deviceInfo;
 
         } else {
-            console.log("Failed to set timing",result);
+            console.log("Failed to get device info");
             return undefined;
         }
     }
