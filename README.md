@@ -26,7 +26,27 @@ Serial converter ($200) or build something based on a ESP32 or Arduino.
 # TODO
 
 * [x] Prove interfacing with a USB device is possible from JS
+* [ ] Fix bug where the USB has to be unplugged to reset after each use.
 * [ ] Implement working API
 * [ ] Implement Frame handling for listen only.
 * [ ] Implement base level CAN node support... may not be possible.
 * [ ] Implement CAN message filtering.
+
+
+# Notes.
+
+To use a endpoint it must first be claimed. If not there is a NOT_FOUND error
+
+The firmware requires all settings including bitrate are set before the CAN device is started, this because the FW sets internal state which is then transferred into registers by the can_start call. It also allows
+them to be set later, with no effect.
+
+If the devices is opened listen only it wont send any ACK messages and so if its the only other device on a bus
+it will receive messages that are no acked repeatedly.
+
+
+In order to close  the device, transfers must be cancelled. There is no cancel in the WebUSB API that works. So
+the transfers are started with a timeout of 500ms to allow them to timeout when before close.
+
+At present the firmware doesn't shutdown correctly and the output list overflows causing the firmware to lock solid for receive requiring a power cycle before it can restart. A fix is required in the JS or FW code. not sure.
+
+Have found the candleLight_fw can be rebuilt and re flashed over dfu using https://github.com/candle-usb/candleLight_fw which allows additional request IDs to be added for debugging and feedback. 

@@ -1,6 +1,10 @@
-const usb = require('usb');
-const { GSUsb } = require('./index.js');
+"use strict";
 
+const process = require('node:process');
+const usb = require('usb');
+const { GSUsb } = require('./gsusb.js');
+const { NMEA2000MessageDecoder } = require('./messages.js');
+const readline = require('readline');
 // https://github.com/jxltom/gs_usb/tree/master/gs_usb
 // /Users/ieb/timefields/candelLite/gs_usb
 
@@ -13,9 +17,8 @@ const webusb = new usb.WebUSB({
 
 const showDevices = async () => {
     const devices = await webusb.getDevices();
-    console.log("USB Devices",devices);
-    const text = devices.map(d => `${d.vendorId}\t${d.productId}\t${d.serialNumber || '<no serial>'}`);
-    text.unshift('VID\tPID\tSerial\n-------------------------------------');
+    const text = devices.map(d => `${d.vendorId}\t${d.productId}\t${d.serialNumber || '<no serial>'}\t${d.productName}`);
+    text.unshift('VID\tPID\tSerial\tProductName\n-------------------------------------');
 
     console.log("USB Devices ",text.join('\n'));
 };
@@ -26,19 +29,45 @@ showDevices().then( async () => {
 
 
   try {
-    console.log(GSUsb);
     const gs_usb = new GSUsb();
-    await gs_usb.start();
+    await gs_usb.start(250000, GSUsb.GS_DEVICE_FLAGS.hwTimeStamp);
     console.log("Started GS USB");
-    await gs_usb.identify(1);
-    await gs_usb.setBitrate(250000);
 
-    console.log("BitRate Set to 250000");
-    console.log("getStartOfFrameTimestampUs", await gs_usb.getStartOfFrameTimestampUs());
-    console.log("getDeviceInfo", await gs_usb.getDeviceInfo());
-    await gs_usb.identify(0);
-    await gs_usb.stop();
-    console.log("Stopped GS USB");
+    gs_usb.on("frame", (frame) => {
+        NMEA2000MessageDecoder.decode(frame);
+    });
+    gs_usb.startStreamingCANFrmes();
+
+    const shutdown = async () => {
+        await gs_usb.stopStreamingCANFrames();
+        await gs_usb.stop();
+    };
+    process.on('exit', async (code) => {
+        console.log("Got exit");
+        await shutdown();
+        console.log("Finished exit");
+        process.exit();
+    });
+    process.on('SIGTERM', async (code) => {
+        console.log("Got term");
+        await shutdown();
+        console.log("Finished term");
+        process.exit();
+    });
+
+    readline.emitKeypressEvents(process.stdin);
+    process.stdin.setRawMode(true)
+
+    process.stdin.on('keypress', async (str, key) => {
+        console.log("Pressed ",key);
+         if (key.ctrl && key.name === 'c') {
+            console.log("shutdown requested ");
+            await shutdown();
+            process.exit();
+        } else {
+            console.log("Press ^C to exit, not ",key);
+        }
+    });
   } catch (err) {
     console.log("oops",err);
     // No device was selected.
