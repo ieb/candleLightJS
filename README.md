@@ -27,10 +27,10 @@ Serial converter ($200) or build something based on a ESP32 or Arduino.
 
 * [x] Prove interfacing with a USB device is possible from JS
 * [ ] Fix bug where the USB has to be unplugged to reset after each use.
-* [ ] Implement working API
-* [ ] Implement Frame handling for listen only.
-* [ ] Implement base level CAN node support... may not be possible.
-* [ ] Implement CAN message filtering.
+* [x] Implement working API
+* [x] Implement Frame handling for listen only.
+* [x] Implement base level CAN node support (ACK only at this time.)
+* [x] Implement CAN message filtering at the USB host.
 
 
 # Notes.
