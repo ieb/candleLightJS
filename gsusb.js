@@ -334,21 +334,22 @@ rc = usb_control_msg_recv(udev, 0,
 
     /**
      * Stop the can device and close the interface. 
-     * At present, after stopping the usb device must be unplugged 
-     * to reset, as close doesn't work as expected and the can buffers get into a
-     * bad state. This is a bug, that needs to be fixed.
+     * The correct sequence is 
+     *  stop new transfers
+     *  wait for transfers to timeout or complete.
+     *  stop the can device.
+     *  release the interface
+     *  close.
+     * 
+     * If the can device is not stopped then it continues to receive data which 
+     * can be seen from the leds. It then overflows the lists and corrupts itself
+     * after which time it has to be power cycled.
+     * 
+     * However this sequence only works 50% of the time. 
      */
     async stop() {
 
-        console.log("Releasing Interface");
-        await this.gs_usb.releaseInterface(0);
-        console.log("Resetting device");
-
-        await this.gs_usb.reset();
-
-        /*// stop the device
         const out = new DataView(new ArrayBuffer(8));
-        // uint32 little endian
         out.setUint32(0,0x00, true); // reset 
         out.setUint32(4,this.device_flags, true);
 
@@ -358,7 +359,9 @@ rc = usb_control_msg_recv(udev, 0,
         } else {
             console.log("Failed to stop",result);
         }
-        */
+
+        console.log("Releasing Interface");
+        await this.gs_usb.releaseInterface(0);
 
         console.log("Done resetting Device");
         await this.gs_usb.close();

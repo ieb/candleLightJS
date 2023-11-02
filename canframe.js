@@ -1,5 +1,9 @@
 "use strict";
 
+/**
+ * Provides handling the can frame received from USB, upto the point where the 
+ * CanID is decoded. It does not handle decoding the PGN or handling multi frame messages.
+ */ 
 class CanFrame {
 
 
@@ -111,6 +115,9 @@ class CanFrame {
             console.log("Standard Frame", this);
         }
     }
+
+
+
 
     _incIfSet(errbm, mask, key, errObj ) {
         if ( ((errbm&mask) === mask)) {
@@ -343,8 +350,8 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
         }
     }
 
-
 }
+
 
 
 

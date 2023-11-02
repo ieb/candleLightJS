@@ -3,11 +3,14 @@
 const process = require('node:process');
 const usb = require('usb');
 const { GSUsb } = require('./gsusb.js');
-const { NMEA2000MessageDecoder } = require('./messages.js');
+const { NMEA2000MessageDecoder } = require('./messages_decoder.js');
 const readline = require('readline');
 // https://github.com/jxltom/gs_usb/tree/master/gs_usb
 // /Users/ieb/timefields/candelLite/gs_usb
 
+
+require('./messages_iso.js').register(NMEA2000MessageDecoder.messages)
+require('./messages_engine.js').register(NMEA2000MessageDecoder.messages)
 
 
 const webusb = new usb.WebUSB({
@@ -33,8 +36,12 @@ showDevices().then( async () => {
     await gs_usb.start(250000, GSUsb.GS_DEVICE_FLAGS.hwTimeStamp);
     console.log("Started GS USB");
 
+    const messageDecoder = new NMEA2000MessageDecoder();
     gs_usb.on("frame", (frame) => {
-        NMEA2000MessageDecoder.decode(frame);
+        const message = messageDecoder.decode(frame);
+        if ( message !== undefined ) {
+            console.log(JSON.stringify(message));
+        }
     });
     gs_usb.startStreamingCANFrmes();
 
