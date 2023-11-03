@@ -11,6 +11,7 @@ const readline = require('readline');
 
 require('./messages_iso.js').register(NMEA2000MessageDecoder.messages)
 require('./messages_engine.js').register(NMEA2000MessageDecoder.messages)
+require('./messages_nav.js').register(NMEA2000MessageDecoder.messages)
 
 
 const webusb = new usb.WebUSB({
