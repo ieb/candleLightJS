@@ -33,6 +33,7 @@ Serial converter ($200) or build something based on a ESP32 or Arduino.
 * [x] Implement CAN message filtering at the USB host.
 * [x] Implement NMEA2000 message decoding.
 * [x] Implement fast packet support.
+* [ ] Implement message filtering in the firmware.
 
 
 # Notes.
