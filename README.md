@@ -2,7 +2,7 @@
 
 A Javascript library to interact directly with USB devices implementing the gs_usb interface without the need for linux kernel support.
 
-The library uses the WebAPI BLE support so should work in Chrome and other browsers although it is being developed to be used in an Electron app running in the nodejs process.
+The library uses the WebAPI USB support so should work in Chrome and other browsers although it is being developed to be used in an Electron app running in the nodejs process.
 
 Developing this was made infinitely easier by reading the following git repos.
 
