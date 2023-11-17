@@ -53,3 +53,102 @@ the transfers are started with a timeout of 500ms to allow them to timeout when 
 As soon as transfers are cancelled the CAN interface must be stopped to prevent internal buffers in the device overflowing and corrupting the device.
 
 Have found the candleLight_fw can be rebuilt and re flashed over dfu using https://github.com/candle-usb/candleLight_fw which allows additional request IDs to be added for debugging and feedback. 
+
+# CAN Filtering. 
+
+## Hardware filtering
+
+The STM32F07xx chips have 28 can filters that can be confgured to filter messages in the hardware. Candlelight firmware doesnt support setting CAN filters and there is no gs_usb support for setting filters.
+
+If filtering can messages in hardware is to be done, we could filter by source address so that we
+only recieve messages from devices of interst, but the source addresses change and renegotiated.
+Hence filtering by source ID would have to be performed without restarting the can hardware. 
+(TODO, find out if this is possible)
+
+https://www.st.com/content/ccc/resource/technical/document/reference_manual/3d/6d/5a/66/b4/99/40/d4/DM00031020.pdf/files/DM00031020.pdf/jcr:content/translations/en.DM00031020.pdf
+32.4.1 page 1080 states filters can be initialised outside can hardware initialisation mode which implies filter can be set after the can hardware becomes active, but can recpetion is disabled when this happens.
+
+So filtering dynamically based on source ID or frequent messages is a possibility.
+
+
+The other approach is a static filter. PGNs are defined in bits 16-24 (inclusive, shifted 8 bits, lower 8 bits 0) for PDU format 1 and and 8-24 (inclusive, no shift) for PDU2.
+eg
+
+PDU1 can ID mask   0x01FF0000  where   FF is < 240 ie < 0xF0. PDU to Can ID is << 8
+PDU2 can ID mask   0x01FFFF00  PDU is 1FFFF
+
+pdu 126992 == 0x1F010, can ID == 0x-1F010--
+
+Below is listed some examples of PGNs and the bit patterns.
+
+65359   0b1111111101001111 PDU2  Raymarine Seatalk Pilot Heading
+65379   0b1111111101100011 PDU2  Raymarine Seatalk Pilot Heading 2
+65384   0b1111111101101000 PDU2  Raymarine Seatalk Pilot Heading 3
+60928   0b1110111000000000 PDU1  IsoAddressClaim
+
+126983 anything lower than this is not of interest.
+0x1F000-0x1FEFF is of interest, but volume of traffic is in this range.
+
+Can filter to remove proprietary messages and remove upper range messages.
+accept Mask 0xFF000 match 0x1F---
+reject Mask 0xFFF00 match 0x1FF--
+reject Mask 0xFFFFF match 0x1F80E
+reject Mask 0xFFFFF match 0x1F80F
+reject Mask 0xFFFFF match 0x1F810
+reject Mask 0xFFFFF match 0x1F811
+
+
+
+
+
+higher than 130816 (0x1FEFF ) not of interest 
+
+
+
+127488 0b11111001000010010 PDU2 Y  RapidEngineData
+127489 0b11111001000000001 PDU2 Y  EngineDynamicParam
+126720 0b11110111100000000 PDU1   Raymarine Proprietary Backlight
+126992 0b11111000000010000 PDU2 Y  N2K System Time
+127237 0b11111000100000101 PDU2   Raymarine Proprietary Heading Track Control
+127245 0b11111000100001101 PDU2 Y  N2K Rudder
+127250 0b11111000100010010 PDU2 Y  N2K Heading
+127251 0b11111000100010011 PDU2   N2K Rate of Turn
+127257 0b11111000100011001 PDU2 Y N2K Attitude
+127258 0b11111000100011010 PDU2 Y N2K Magnetic Variation
+127505 0b11111001000000000 PDU2 Y Fluid Level
+127506 0b11111001000010010 PDU2 Y N2K DC Status
+127508 0b11111001000010100 PDU2 Y DCBatteryStatus
+128259 0b11111010100000011 PDU2 Y N2K Speed
+128267 0b11111010100001011 PDU2 Y N2K Water Depth
+128275 0b11111010100010011 PDU2 Y N2K Distance Log
+129026 0b11111100000000010 PDU2 Y N2K COG SOG Rapid
+129029 0b11111100000000101 PDU2 Y N2K GNSS
+129038 0b11111100000001110 PDU2   AIS Class A Position Report
+129039 0b11111100000001111 PDU2   AIS Class B Position Report
+129040 0b11111100000010000 PDU2   AIS Class B Extended Position Repor
+129041 0b11111100000010001 PDU2   AIS Aids to Navigation (AtoN) Report
+
+129283 0b11111100100000011 PDU2 Y N2K Cross Track Error
+130306 0b11111110100000010 PDU2 Y N2K Wind
+130310 0b11111110100000110 PDU2 Y N2K Outside Environment Parameters
+130311 0b11111110100000111 PDU2 Y N2K Environment Parameters
+130312 0b11111110100001000 PDU2 Y Temperature
+130313 0b11111110100001001 PDU2   N2K Humidity
+130314 0b11111110100001010 PDU2 Y N2K Pressure
+130315 0b11111110100001011 PDU2   N2K Set Pressure
+130316 0b11111110100001100 PDU2 Y N2K Temperature Extended
+130916 0b11111111101100100 PDU2  Raymarine Proprietary unknown
+
+No real patterns are availabe other than perhaps the data bit (24) not set.
+Probably the best way of using filters is to reject the high volume PGNs that are not wanted and would swamp the processing power of the chip. Process the remainder though an code level filter.
+Could also reject messages that are not broadcast messages. 
+
+
+## Software filtering
+
+Process the CAN ID and filter on it. 
+
+See GSUsb.setupFilters
+
+Requires custom Firmware see my candleLight_fw repo.
+

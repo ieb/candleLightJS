@@ -88,6 +88,16 @@ class GSUSBConstants {
         set_termination: { request: 12, len:  4,       write: true },
         get_termination: { request: 13, len: 4,        read:  true },
         get_state:       { request: 14, len: undefined             }, // generally not implemented
+        setfilters:      { request: 32, len: 8,      write: true }, // custom firware required, not standard gs_usb
+    };
+
+    static GS_USB_FILTER_TYPE = {
+        pgn: 0,
+        source: 1,
+        destination: 2,
+        resetPgn: 3,
+        resetSource: 4,
+        resetDestination: 5
     };
 
     /**
@@ -666,6 +676,112 @@ Quantum time == 48000000/12 = 4000000 ie 0.25us
             return false;
         }
     }
+
+    /**
+     * filters: {
+     *   sourceFilter: uint8[],
+     *   destinationFilter: uint8[],
+     *   pgnFilter: uint32[]
+     * }
+     * Maximum number of filters is 20 in any class of filter.
+     * When filters are defined the message must match at least one from each class.
+     * If filters are not defined, the class not checked.
+     * 
+     * eg if you wanted to only see broadcasts you would set
+     * filters: {
+     *    destinationFilter: [ 0xff ]
+     * }
+     * 
+     * of if you only wanted to see pgns for rapid engine data from engin on at a source address of 23
+     * filters: {
+     *    sourceFilter: [ 23 ],
+     *    pgnFilter: [ 127488]
+     * }
+     * 
+     * source addresses generally change so filtering like this is not so ousefull.
+     */ 
+
+    async setupFilters(filters) {
+        filters.sourceFilter = filters.sourceFilter || [];
+        filters.destinationFilter = filters.destinationFilter || [];
+        filters.pgnFilter = filters.pgnFilters || [];
+        const nSourceFilters = Math.min(filters.sourceFilter.length, 20);
+        const nDestinationFilters = Math.min(filters.destinationFilter.length, 20);
+        const nPgnFilters = Math.min(filters.pgnFilters.length, 20);
+/*
+struct gs_device_filter {
+    u8 filterNum;
+    u8 filterType;
+    u8 address;
+    u8 reserved;
+    u32 pgn;
+} __packed __aligned(4);
+
+
+*/
+
+        const out = new DataView(new ArrayBuffer(8));
+        if ( filters.sourceFilter ) {
+            out.setUInt8(0, 0);
+            out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.resetSource);
+            out.setUInt8(2, 0);
+            out.setUInt8(3, 0);
+            out.setUInt32(4, 0);
+            if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+                return false;
+            }
+            const nFilters = Math.min(filters.sourceFilter.length, 20);
+            for (var i = 0; i < nFilters; i++) {
+                out.setUInt8(0, i);
+                out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.source);
+                out.setUInt8(2, filters.sourceFilter[i]);
+                if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+                    return false;
+                }
+            }
+        }
+        if ( filters.destinationFilter ) {
+            out.setUInt8(0, 0);
+            out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.resetDestination);
+            out.setUInt8(2, 0);
+            out.setUInt8(3, 0);
+            out.setUInt32(4, 0);
+            if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+                return false;
+            }
+            const nFilters = Math.min(filters.destinationFilter.length, 20);
+            for (var i = 0; i < nFilters; i++) {
+                out.setUInt8(0, i);
+                out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.destination);
+                out.setUInt8(2, filters.destinationFilter[i]);
+                if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+                    return false;
+                }
+            }
+        }
+
+        if ( filters.pgnFilter ) {
+            out.setUInt8(0, 0);
+            out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.resetPgn);
+            out.setUInt8(2, 0);
+            out.setUInt8(3, 0);
+            out.setUInt32(4, 0);
+            if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+                return false;
+            }
+            const nFilters = Math.min(filters.pgnFilter.length, 20);
+            for (var i = 0; i < nFilters; i++) {
+                out.setUInt8(0, i);
+                out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.pgn);
+                out.setUInt32(4, filters.pgnFilter[i]);
+                if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+                    return false;
+                }
+            }
+        }
+        return true;
+
+    } 
 
 
 
