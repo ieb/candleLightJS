@@ -33,7 +33,7 @@ Serial converter ($200) or build something based on a ESP32 or Arduino.
 * [x] Implement CAN message filtering at the USB host.
 * [x] Implement NMEA2000 message decoding.
 * [x] Implement fast packet support.
-* [ ] Implement message filtering in the firmware.
+* [x] Implement message filtering in the firmware.
 
 
 # Notes.
@@ -150,5 +150,7 @@ Process the CAN ID and filter on it.
 
 See GSUsb.setupFilters
 
-Requires custom Firmware see my candleLight_fw repo.
+Requires custom Firmware see my candleLight_fw see https://github.com/ieb/candleLight_fw/tree/withFilters
+
+Allows upto 20 filters on pgn, source, and destination. There must be 1 match from each class of filter for the message to be accepted.  if destination 0xff is defined and pgn 60928, then only broadcast ISORequests CAN packets will be sent to the USB host.
 

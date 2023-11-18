@@ -88,7 +88,8 @@ class GSUSBConstants {
         set_termination: { request: 12, len:  4,       write: true },
         get_termination: { request: 13, len: 4,        read:  true },
         get_state:       { request: 14, len: undefined             }, // generally not implemented
-        setfilters:      { request: 32, len: 8,      write: true }, // custom firware required, not standard gs_usb
+        setfilter:       { request: 32, len: 8,        write: true }, // custom firware required, not standard gs_usb
+        readfilter:      { request: 33, len: 8,        read: true  }, // custom firware required, not standard gs_usb
     };
 
     static GS_USB_FILTER_TYPE = {
@@ -97,7 +98,10 @@ class GSUSBConstants {
         destination: 2,
         resetPgn: 3,
         resetSource: 4,
-        resetDestination: 5
+        resetDestination: 5,
+        readPgn: 6,
+        readSource: 7,
+        readDestination: 8
     };
 
     /**
@@ -701,13 +705,7 @@ Quantum time == 48000000/12 = 4000000 ie 0.25us
      * source addresses generally change so filtering like this is not so ousefull.
      */ 
 
-    async setupFilters(filters) {
-        filters.sourceFilter = filters.sourceFilter || [];
-        filters.destinationFilter = filters.destinationFilter || [];
-        filters.pgnFilter = filters.pgnFilters || [];
-        const nSourceFilters = Math.min(filters.sourceFilter.length, 20);
-        const nDestinationFilters = Math.min(filters.destinationFilter.length, 20);
-        const nPgnFilters = Math.min(filters.pgnFilters.length, 20);
+    async setupDeviceFilters(filters) {
 /*
 struct gs_device_filter {
     u8 filterNum;
@@ -722,69 +720,164 @@ struct gs_device_filter {
 
         const out = new DataView(new ArrayBuffer(8));
         if ( filters.sourceFilter ) {
-            out.setUInt8(0, 0);
-            out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.resetSource);
-            out.setUInt8(2, 0);
-            out.setUInt8(3, 0);
-            out.setUInt32(4, 0);
-            if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+            out.setUint8(0, 0);
+            out.setUint8(1, GSUSBConstants.GS_USB_FILTER_TYPE.resetSource);
+            out.setUint8(2, 0);
+            out.setUint8(3, 0);
+            out.setUint32(4, 0);
+            if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilter, out.buffer) ) {
+                console.log("Failed to Clear device source filters");
                 return false;
+
             }
             const nFilters = Math.min(filters.sourceFilter.length, 20);
             for (var i = 0; i < nFilters; i++) {
-                out.setUInt8(0, i);
-                out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.source);
-                out.setUInt8(2, filters.sourceFilter[i]);
-                if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+                out.setUint8(0, i);
+                out.setUint8(1, GSUSBConstants.GS_USB_FILTER_TYPE.source);
+                out.setUint8(2, filters.sourceFilter[i]);
+                if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilter, out.buffer) ) {
+                    console.log("Failed to Set device source filters");
                     return false;
                 }
             }
         }
         if ( filters.destinationFilter ) {
-            out.setUInt8(0, 0);
-            out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.resetDestination);
-            out.setUInt8(2, 0);
-            out.setUInt8(3, 0);
-            out.setUInt32(4, 0);
-            if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+            out.setUint8(0, 0);
+            out.setUint8(1, GSUSBConstants.GS_USB_FILTER_TYPE.resetDestination);
+            out.setUint8(2, 0);
+            out.setUint8(3, 0);
+            out.setUint32(4, 0);
+            if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilter, out.buffer) ) {
+                console.log("Failed to Set device destintion filters");
                 return false;
             }
             const nFilters = Math.min(filters.destinationFilter.length, 20);
             for (var i = 0; i < nFilters; i++) {
-                out.setUInt8(0, i);
-                out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.destination);
-                out.setUInt8(2, filters.destinationFilter[i]);
-                if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+                out.setUint8(0, i);
+                out.setUint8(1, GSUSBConstants.GS_USB_FILTER_TYPE.destination);
+                out.setUint8(2, filters.destinationFilter[i]);
+                if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilter, out.buffer) ) {
+                    console.log("Failed to Set device destintion filters");
                     return false;
                 }
             }
         }
 
         if ( filters.pgnFilter ) {
-            out.setUInt8(0, 0);
-            out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.resetPgn);
-            out.setUInt8(2, 0);
-            out.setUInt8(3, 0);
-            out.setUInt32(4, 0);
-            if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+            out.setUint8(0, 0);
+            out.setUint8(1, GSUSBConstants.GS_USB_FILTER_TYPE.resetPgn);
+            out.setUint8(2, 0);
+            out.setUint8(3, 0);
+            out.setUint32(4, 0);
+            if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilter, out.buffer) ) {
+                console.log("Failed to Set device pgn filters");
                 return false;
             }
             const nFilters = Math.min(filters.pgnFilter.length, 20);
             for (var i = 0; i < nFilters; i++) {
-                out.setUInt8(0, i);
-                out.setUInt8(1, GSUSBConstants.GS_USB_FILTER_TYPE.pgn);
-                out.setUInt32(4, filters.pgnFilter[i]);
-                if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilters, out.buffer) ) {
+                out.setUint8(0, i);
+                out.setUint8(1, GSUSBConstants.GS_USB_FILTER_TYPE.pgn);
+                out.setUint32(4, filters.pgnFilter[i], true);
+                if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilter, out.buffer) ) {
+                    console.log("Failed to Set device pgn filters");
                     return false;
                 }
-            }
+           }
         }
+        console.log("Done setting device filters ");
         return true;
 
     } 
 
+/*
+struct gs_device_filter {
+    u8 filterNum;  // the number of the filter read or written, 255 if no more filters on read.
+    u8 filterType; // see gs_can_filter_operaton_type
+    u8 address;    // address, depending on value of filterType
+    u8 nFilters;  // device -> host only, reports the max filternumber of the type in use.
+    u32 pgn; // pgn value
+} __packed __aligned(4);
+*/
 
+    async getDeviceFilters() {
 
+        const filters = {
+            nActivePgnFilters: 0,
+            nActiveSourceFilters: 0,
+            nActiveDestinationFilters: 0,
+            pgnFilter: [],
+            sourceFilter: [],
+            destinationFilter: []
+
+        };
+        const readFilter = (data) => {
+            if ( data !== undefined ) {
+                return {
+                    filterNum: data.getUint8(0),
+                    filterType: data.getUint8(1),
+                    address: data.getUint8(2),
+                    nActiveFilters: data.getUint8(3),
+                    pgn: data.getUint32(4,true)
+                }                
+            } else {
+                return undefined;
+            }
+        };
+
+        const readFilterOfType = async (filterType) => {
+            const filters = {
+                nActiveFilters: 0,
+                address: [],
+                pgn: []
+            };
+
+            const out = new DataView(new ArrayBuffer(8));
+            out.setUint8(0, 0); // start at 0
+            out.setUint8(1, filterType);
+            out.setUint8(2, 0);
+            out.setUint8(3, 0);
+            out.setUint32(4, 0);
+            if ( ! await this._controlWrite(GSUSBConstants.GS_USB_BREQ.setfilter, out.buffer) ) {
+                console.log("Failed to Initiate read of device destnation filters");
+                return undefined;
+            }
+            for (var i = 0; i < 255; i++) {
+                const filter = readFilter(await this._controlRead(GSUSBConstants.GS_USB_BREQ.readfilter));
+                if ( filter === undefined ) {
+                    console.log("Failed to read device filter");
+                    break;
+                } else if ( filter.filterType !== filterType) {
+                    console.log("Failed to read device filter, bad type");
+                    break;
+                } else if ( filter.filterNum === 255 ) {
+                    break;
+                } else {
+                    filters.nActiveFilters = filter.nActiveFilters;
+                    filters.address[filter.filterNum] = filter.address;
+                    filters.pgn[filter.filterNum] = filter.pgn;
+                }
+            }
+            return filters;
+        }
+
+        const pgnFilter = await readFilterOfType(GSUSBConstants.GS_USB_FILTER_TYPE.readPgn);
+        if (pgnFilter != undefined) {
+            filters.nActivePgnFilters = pgnFilter.nActiveFilters;
+            filters.pgnFilter = pgnFilter.pgn;
+        }
+        const sourceFilter = await readFilterOfType(GSUSBConstants.GS_USB_FILTER_TYPE.readSource);
+        if (sourceFilter != undefined) {
+            filters.nActiveSourceFilters = sourceFilter.nActiveFilters;
+            filters.sourceFilter = sourceFilter.address;
+        }
+        const destinationFilter = await readFilterOfType(GSUSBConstants.GS_USB_FILTER_TYPE.readDestination);
+        if (destinationFilter != undefined) {
+            filters.nActiveDestinationFilters = destinationFilter.nActiveFilters;
+            filters.destinationFilter = destinationFilter.address;
+        }
+        return filters;
+
+    }
 
     /**
      * Get the us timestamp when the frame started.

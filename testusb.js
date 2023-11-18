@@ -34,8 +34,41 @@ showDevices().then( async () => {
 
   try {
     const gs_usb = new GSUsb();
+
+
     await gs_usb.start(250000, GSUsb.GS_DEVICE_FLAGS.hwTimeStamp);
     console.log("Started GS USB");
+    // should only get RapidEngineData
+    const filtersIn = {
+        sourceFilter: [],
+        destinationFilter: [],
+        pgnFilter: [
+            126992, // System time
+            127250, // Heading
+            127257, // attitude
+            127258, // variation
+            128259, // speed
+            128267, // depth
+            128275, // log
+            129029, // GNSS
+            129026, // sog cog rapid
+            129283, // XTE
+            130306, // wind
+            127506, // DC Status
+            127508, // DC Bat status
+            130312, // temp
+            127505, // fluid level
+            127489, // Engine Dynamic params
+            127488, // Engine Rapiod
+            130314, // pressure
+            127245 // rudder
+        ]
+    };
+
+    await gs_usb.setupDeviceFilters(filtersIn);
+
+    const filters = await gs_usb.getDeviceFilters();
+    console.log("Filters are ", filters);
 
     const messageDecoder = new NMEA2000MessageDecoder();
     gs_usb.on("frame", (frame) => {
