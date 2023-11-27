@@ -118,7 +118,7 @@ class PGN127508_DCBatteryStatus extends CANMessage {
             pgn: 127508,
             message: "DCBatteryStatus",
             instance: this.getByte(message,0),
-            batteryInstance: this.get2ByteDouble(message, 1,0.01),
+            batteryVoltage: this.get2ByteDouble(message, 1,0.01),
             batteryCurrent: this.get2ByteDouble(message, 3,0.1),
             batteryTemperature: this.get2ByteUDouble(message, 5,0.01)
         };
