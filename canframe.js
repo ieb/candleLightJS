@@ -1,4 +1,5 @@
 "use strict";
+const process = require('node:process');
 
 /**
  * Provides handling the can frame received from USB, upto the point where the 
@@ -329,7 +330,7 @@ https://github.com/linux-can/can-utils/blob/master/include/linux/can.h#L56
             this.errors.transceverStatus = this._accumulate(errObj, this.errors.transceverStatus);
 
 
-            console.log("   Transciever Status       update:",erroJb, "totals",this.errors.transceverStatus);
+            console.log("   Transciever Status       update:",errObj, "totals",this.errors.transceverStatus);
 
         }
         if ( (this.can_id&0x20) === 0x20 ) {

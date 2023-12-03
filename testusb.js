@@ -87,12 +87,14 @@ showDevices().then( async () => {
         await gs_usb.stopStreamingCANFrames();
         await gs_usb.stop();
     };
+    // eslint-disable-next-line no-unused-vars
     process.on('exit', async (code) => {
         console.log("Got exit");
         await shutdown();
         console.log("Finished exit");
         process.exit();
     });
+    // eslint-disable-next-line no-unused-vars
     process.on('SIGTERM', async (code) => {
         console.log("Got term");
         await shutdown();

@@ -233,7 +233,7 @@ From https://github.com/torvalds/linux/blob/master/drivers/net/can/usb/gs_usb.c#
         await this.gs_usb.clearHalt("out", GSUSBConstants.ENDPOINTS.out);
 
 
-
+        const out = new DataView(new ArrayBuffer(8));
         out.setUint32(0,0x00, true); // reset 
         out.setUint32(4,this.device_flags, true);
 
@@ -241,7 +241,7 @@ From https://github.com/torvalds/linux/blob/master/drivers/net/can/usb/gs_usb.c#
             console.log("Stopped CAN Ok");
             this.started = false;
         } else {
-            console.log("Failed to stop",result);
+            console.log("Failed to stop");
         }
 
 
@@ -282,6 +282,7 @@ rc = usb_control_msg_recv(udev, 0,
         });
 
 
+        this.gs_usb = undefined;
         try {
             this.gs_usb = await webusb.requestDevice({ filters: GSUSBConstants.GS_USB_DEVICES});
         } catch (e) {
@@ -388,7 +389,7 @@ rc = usb_control_msg_recv(udev, 0,
             console.log("Stopped CAN Ok");
             this.started = false;
         } else {
-            console.log("Failed to stop",result);
+            console.log("Failed to stop");
         }
 
         console.log("Releasing Interface");
@@ -430,7 +431,7 @@ rc = usb_control_msg_recv(udev, 0,
             //this.dumpSupportedFLags(capabilities.features);
             return capabilities;
         } else {
-            console.log("Failed to get capabilities ", result);
+            console.log("Failed to get capabilities ");
             return undefined;
         }
     }
@@ -562,14 +563,13 @@ Quantum time == 48000000/12 = 4000000 ie 0.25us
                  timing.brp = 11; 
                  timing.phase_seg1 = 4;
                  break;
-                case 1000000: timing.brp = 3; break;;
+                case 1000000: timing.brp = 3; break;
                 default:
                     console.log("Bitrate not supported ",bitrate);
                     return false;
             }
 
-            const result = this.analyseBittimings(bitrate, timing);
-
+            //const result = this.analyseBittimings(bitrate, timing);
             //console.log("Setting timing", bitrate, this.capabilities, timing, result);
             return await this._setTiming(timing);
         } else if (this.capabilities.fclk_can == 80000000) {
@@ -600,7 +600,7 @@ Quantum time == 48000000/12 = 4000000 ie 0.25us
                     console.log("Bitrate not supported ",bitrate);
                     return false;
             }
-            const result = this.analyseBittimings(bitrate, timing);
+            //const result = this.analyseBittimings(bitrate, timing);
             //console.log("Setting timing", bitrate, this.capabilities, timing, result);
             return await this._setTiming(timing);
         } else {
@@ -647,7 +647,7 @@ Quantum time == 48000000/12 = 4000000 ie 0.25us
         let valid = true;
         if ( this.started ) {
             console.log("Setting bitrate after started has no effect");
-            value = false;
+            valid = false;
         }
         if (  (timing.brp < this.capabilities.brp_min ) || (timing.brp > this.capabilities.brp_max ) ) {
             console.log(`Baud rate prescalar incorrect value:${timing.brp} min:${this.capabilities.brp_min} max:${this.capabilities.brp_max}`);
@@ -748,7 +748,7 @@ struct gs_device_filter {
 
             }
             const nFilters = Math.min(filters.sourceFilter.length, 20);
-            for (var i = 0; i < nFilters; i++) {
+            for (let i = 0; i < nFilters; i++) {
                 out.setUint8(0, i);
                 out.setUint8(1, GSUSBConstants.GS_USB_FILTER_TYPE.source);
                 out.setUint8(2, filters.sourceFilter[i]);
@@ -769,7 +769,7 @@ struct gs_device_filter {
                 return false;
             }
             const nFilters = Math.min(filters.destinationFilter.length, 20);
-            for (var i = 0; i < nFilters; i++) {
+            for (let i = 0; i < nFilters; i++) {
                 out.setUint8(0, i);
                 out.setUint8(1, GSUSBConstants.GS_USB_FILTER_TYPE.destination);
                 out.setUint8(2, filters.destinationFilter[i]);
@@ -791,7 +791,7 @@ struct gs_device_filter {
                 return false;
             }
             const nFilters = Math.min(filters.pgnFilter.length, 20);
-            for (var i = 0; i < nFilters; i++) {
+            for (let i = 0; i < nFilters; i++) {
                 out.setUint8(0, i);
                 out.setUint8(1, GSUSBConstants.GS_USB_FILTER_TYPE.pgn);
                 out.setUint32(4, filters.pgnFilter[i], true);
@@ -917,11 +917,14 @@ struct gs_device_filter {
      * Write one frame.
      */
     async writeCANFrame(frame) {
-        const result = await this.gs_usb.trasferOut(GSUSBConstants.ENDPOINTS.out, frame.toBuffer());
-        if ( result.status == "ok") {
-            return true;
-        } else {
-            console.log("Failed to write ", result);
+        if ( this.gs_usb != undefined ) {
+            const result = await this.gs_usb.trasferOut(GSUSBConstants.ENDPOINTS.out, frame.toBuffer());
+            if ( result.status == "ok") {
+                return true;
+            } else {
+                console.log("Failed to write ", result);
+            }
+
         }
         return false;
     }
@@ -931,20 +934,22 @@ struct gs_device_filter {
      * This is a private method, by can be called directly
      */
     async _readCANFrame(frame) {
-        //console.log("Reading Frame");
-        const endpointId = GSUSBConstants.ENDPOINTS.in | GSUSBConstants.LIBUSB_ENDPOINT_IN;
-        const endpoint = await this.gs_usb.getEndpoint(endpointId);
-        if ( endpoint == undefined ) {
-            console.log("Endpoint doesnt exists", GSUSBConstants.ENDPOINTS.in, GSUSBConstants.LIBUSB_ENDPOINT_IN, endpointId);
-            throw new Error("Invalid endpoint");
-        }
-        endpoint.timeout = 500; // 200 ms timeout, required as the default is infinite.
-        const result = await this.gs_usb.transferIn(GSUSBConstants.ENDPOINTS.in, frame.frameLength);
-        if ( result.status == "ok" ) {
-            frame.fromBuffer(result.data);
-            return true;
-        } else {
-            console.log("Failed to read ", result);
+        if ( this.gs_usb != undefined ) {
+            //console.log("Reading Frame");
+            const endpointId = GSUSBConstants.ENDPOINTS.in | GSUSBConstants.LIBUSB_ENDPOINT_IN;
+            const endpoint = await this.gs_usb.getEndpoint(endpointId);
+            if ( endpoint == undefined ) {
+                console.log("Endpoint doesnt exists", GSUSBConstants.ENDPOINTS.in, GSUSBConstants.LIBUSB_ENDPOINT_IN, endpointId);
+                throw new Error("Invalid endpoint");
+            }
+            endpoint.timeout = 500; // 200 ms timeout, required as the default is infinite.
+            const result = await this.gs_usb.transferIn(GSUSBConstants.ENDPOINTS.in, frame.frameLength);
+            if ( result.status == "ok" ) {
+                frame.fromBuffer(result.data);
+                return true;
+            } else {
+                console.log("Failed to read ", result);
+            }          
         }
         return false;
     }
@@ -1011,7 +1016,11 @@ struct gs_device_filter {
                     }
                 }               
             } catch (e) {
-                console.log("readCanFrame failed ",e);
+                if ( e.message && e.message.includes("LIBUSB_TRANSFER_TIMED_OUT")) {
+                    console.log("readCanFrame timeout");
+                } else {
+                    console.log("readCanFrame failed ", e);
+                }
             }
             if ( that.streamCanFrames ) {
                 that.startStreamingCANFrmes(frame);
@@ -1044,57 +1053,59 @@ struct gs_device_filter {
      * req takes the form { req: requestId, len: expected length, read:  true}
      */
     async _controlRead(req) {
-        try {
-            const result = await this.gs_usb.controlTransferIn({
-                requestType: 'vendor', // 0x40
-                recipient: 'interface', // 0x01 ,, write 0x41
-                request: req.request, // 
-                value: 0,  // channel 0 is the can channel, (1 is DFU for programming)
-                index: 0
-            }, req.len);
-            if ( result.status == "ok") {
-                return result.data;
-            } else {
-                console.log("Failed to read data", req, result);
-                return undefined;
+        if ( this.gs_usb !== undefined ) {
+            try {
+                const result = await this.gs_usb.controlTransferIn({
+                    requestType: 'vendor', // 0x40
+                    recipient: 'interface', // 0x01 ,, write 0x41
+                    request: req.request, // 
+                    value: 0,  // channel 0 is the can channel, (1 is DFU for programming)
+                    index: 0
+                }, req.len);
+                if ( result.status == "ok") {
+                    return result.data;
+                } else {
+                    console.log("Failed to read data", req, result);
+                }
+            } catch (e) {
+                if ( req.read ) {
+                    console.log("Read failed, firmware bug perhaps ", e);
+                } else {
+                    console.log("Read failed, read not supported ", e);
+                }
             }
-        } catch (e) {
-            if ( req.read ) {
-                console.log("Read failed, firmware bug perhaps ", e);
-            } else {
-                console.log("Read failed, read not supported ", e);
-            }
-            return undefined;                    
         }
+        return undefined;
     }
     /**
      * write a control message from the buffer
      * req takes the form { req: requestId, len: expected length, write:  true}
      */
     async _controlWrite(req, buffer) {
-        try {
-            //console.log("Sending ",buffer);
-            const result = await this.gs_usb.controlTransferOut({
-                requestType: 'vendor', // 0x40
-                recipient: 'interface', // 0x01 ,, write 0x41
-                request: req.request, // mode request
-                value: 0,  // channel 0 is the can channel, (1 is DFU for programming)
-                index: 0
-            }, buffer);
-            if ( result.status === "ok" ) {
-                return true;
-            } else {
-                console.log("Failed to write",result);
-                return false;
+        if ( this.gs_usb !== undefined ) {
+            try {
+                //console.log("Sending ",buffer);
+                const result = await this.gs_usb.controlTransferOut({
+                    requestType: 'vendor', // 0x40
+                    recipient: 'interface', // 0x01 ,, write 0x41
+                    request: req.request, // mode request
+                    value: 0,  // channel 0 is the can channel, (1 is DFU for programming)
+                    index: 0
+                }, buffer);
+                if ( result.status === "ok" ) {
+                    return true;
+                } else {
+                    console.log("Failed to write",result);
+                }
+            } catch (e) {
+                if ( req.write ) {
+                    console.log("Write failed, firmware bug perhaps ", e);
+                } else {
+                    console.log("Write failed, read not supported ", e);
+                }
             }
-        } catch (e) {
-            if ( req.write ) {
-                console.log("Write failed, firmware bug perhaps ", e);
-            } else {
-                console.log("Write failed, read not supported ", e);
-            }
-            return undefined;                    
         }
+        return undefined;
 
     }
 

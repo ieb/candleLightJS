@@ -1,7 +1,5 @@
-const process = require('node:process');
 const usb = require('usb');
 const { GSUsb } = require('./index.js');
-const readline = require('readline');
 // https://github.com/jxltom/gs_usb/tree/master/gs_usb
 // /Users/ieb/timefields/candelLite/gs_usb
 

@@ -25,7 +25,7 @@ class PGN127245 extends CANMessage {
     }
     fromMessage(message) {
         return {
-            pgn: 127245,
+            pgn: 127245, 
             message: "N2K Rudder",
             instance: this.getByte(message, 0),
             rudderDirectionOrder: NMEA2000Reference.lookup("rudderDirectionOrder",this.getByte(message, 1)&0x07), 
@@ -367,6 +367,7 @@ class PGN130916 extends CANMessage {
         return {
             pgn: 130916,
             message: "Raymarine Proprietary unknown",
+            canmessage: message
         };
     }
 }
@@ -379,6 +380,7 @@ class PGN126720 extends CANMessage {
         return {
             pgn: 126720,
             message: "Raymarine Proprietary Backlight",
+            canmessage: message
         };
     }
 }
@@ -425,6 +427,7 @@ class PGN65359 extends CANMessage {
         return {
             pgn: 65359,
             message: "Raymarine Seatalk Pilot Heading",
+            canmessage: message
         };
     }
 }
@@ -437,6 +440,7 @@ class PGN65379 extends CANMessage {
         return {
             pgn: 65379,
             message: "Raymarine Seatalk Pilot Heading 2",
+            canmessage: message
         };
     }
 }
@@ -449,6 +453,7 @@ class PGN65384 extends CANMessage {
         return {
             pgn: 65384,
             message: "Raymarine Seatalk Pilot Heading 3",
+            canmessage: message
         };
     }
 }
