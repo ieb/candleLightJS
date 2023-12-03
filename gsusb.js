@@ -380,6 +380,10 @@ rc = usb_control_msg_recv(udev, 0,
      * However this sequence only works 50% of the time. 
      */
     async stop() {
+        if ( this.gs_usb === undefined ) {
+            console.log("No device found");
+            return;
+        }
 
         const out = new DataView(new ArrayBuffer(8));
         out.setUint32(0,0x00, true); // reset 
