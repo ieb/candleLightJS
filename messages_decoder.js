@@ -24,7 +24,7 @@ class NMEA2000MessageDecoder {
             }
 
         } else {
-            console.log("PGN Not found ", frame.messageHeader.pgn);
+            console.log("NMEA2000MessageDecoder: Decoder Not found for PGN ", frame.messageHeader.pgn, " to fix, register one ");
         }
         return undefined;
     }
