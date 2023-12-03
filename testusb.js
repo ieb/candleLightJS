@@ -36,7 +36,11 @@ showDevices().then( async () => {
     const gs_usb = new GSUsb();
 
 
-    await gs_usb.start(250000, GSUsb.GS_DEVICE_FLAGS.hwTimeStamp);
+    const status = await gs_usb.start(250000, GSUsb.GS_DEVICE_FLAGS.hwTimeStamp);
+    if ( !status.ok ) {
+        console.log("Failed to find gsusb device", status);
+        return;
+    }
     console.log("Started GS USB");
     // should only get RapidEngineData
     const filtersIn = {

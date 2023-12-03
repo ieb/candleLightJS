@@ -282,8 +282,17 @@ rc = usb_control_msg_recv(udev, 0,
         });
 
 
+        try {
+            this.gs_usb = await webusb.requestDevice({ filters: GSUSBConstants.GS_USB_DEVICES});
+        } catch (e) {
+            console.log("GS USB device not found", e);
+            return {
+                msg: "GS USB device not found",
+                e: ""+e,
+                ok: false
+            };
+        }
 
-        this.gs_usb = await webusb.requestDevice({ filters: GSUSBConstants.GS_USB_DEVICES});
         console.log("Found  ",this.gs_usb.productName );
         await this.gs_usb.open();
         await this.gs_usb.reset();
@@ -337,9 +346,17 @@ rc = usb_control_msg_recv(udev, 0,
         if ( await this._controlWrite(GSUSBConstants.GS_USB_BREQ.mode, out.buffer) ) {
             console.log("Started CAN Ok");
             this.started = true;
+            return {
+                ok: true
+            };
+
 
         } else {
-            console.log("Failed to start",result);
+            console.log("GS USB  Failed to start");
+            return {
+                msg: "Failed to start",
+                ok: false
+            };
         }
 
 
