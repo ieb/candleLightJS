@@ -384,23 +384,38 @@ rc = usb_control_msg_recv(udev, 0,
             console.log("No device found");
             return;
         }
+        this.started = false;
+        const that = this;
 
-        const out = new DataView(new ArrayBuffer(8));
-        out.setUint32(0,0x00, true); // reset 
-        out.setUint32(4,this.device_flags, true);
+        // wait for 1s before closing to allow any pending requests to stop.
+        return new Promise((resolve, reject) => {
+            setTimeout(async () => {
+                try {
+                    const out = new DataView(new ArrayBuffer(8));
+                    out.setUint32(0,0x00, true); // reset 
+                    out.setUint32(4,0x00, true); // clear all flags. see defice_flags
 
-        if ( await this._controlWrite(GSUSBConstants.GS_USB_BREQ.mode, out.buffer)) {
-            console.log("Stopped CAN Ok");
-            this.started = false;
-        } else {
-            console.log("Failed to stop");
-        }
+                    if ( await that._controlWrite(GSUSBConstants.GS_USB_BREQ.mode, out.buffer)) {
+                        console.log("Stopped CAN Ok");
+                    } else {
+                        console.log("Failed to stop");
+                    }
 
-        console.log("Releasing Interface");
-        await this.gs_usb.releaseInterface(0);
+                    console.log("Releasing Interface");
+                    await that.gs_usb.releaseInterface(0);
 
-        console.log("Done resetting Device");
-        await this.gs_usb.close();
+                    console.log("Done resetting Device");
+                    await that.gs_usb.close();
+
+                    resolve();
+                } catch (e) {
+                    console.log("Stop Failed ",e);
+                    reject(e);
+                }
+
+            }, 1000)
+        });
+
 
     }
 
@@ -938,7 +953,7 @@ struct gs_device_filter {
      * This is a private method, by can be called directly
      */
     async _readCANFrame(frame) {
-        if ( this.gs_usb != undefined ) {
+        if ( this.gs_usb != undefined && this.started ) {
             //console.log("Reading Frame");
             const endpointId = GSUSBConstants.ENDPOINTS.in | GSUSBConstants.LIBUSB_ENDPOINT_IN;
             const endpoint = await this.gs_usb.getEndpoint(endpointId);
@@ -1005,34 +1020,39 @@ struct gs_device_filter {
      */
     startStreamingCANFrmes(frame) {
         frame = frame || new CanFrame(this.frameLength);
-        this.streamCanFrames = true;
-        const that = this;
-        // not using process.nextTick() to try and keep the code
-        // able to run in both chrome and node.
-        setTimeout(async () => {
-            try {
-                // timeout is 1s, and the call is non blocking as
-                // it goes to libusb lib_transfer_submit which returns immediately to call a callback 
-                // on success, error or timeout. Default timeout is 1s.
-                if ( await that._readCANFrame(frame) ) {
-                    if ( this._acceptMessage(frame)) {
-                        that._emitEvent("frame", frame);
+        this.streamCanFrames = true
+        this._streamCANFrames(frame);
+    }
+
+    _streamCANFrames(frame) {
+        if ( this.started && this.streamCanFrames ) {
+            const that = this;
+            // not using process.nextTick() to try and keep the code
+            // able to run in both chrome and node.
+            setTimeout(async () => {
+                try {
+                    // timeout is 1s, and the call is non blocking as
+                    // it goes to libusb lib_transfer_submit which returns immediately to call a callback 
+                    // on success, error or timeout. Default timeout is 1s.
+                    if ( await that._readCANFrame(frame) ) {
+                        if ( this._acceptMessage(frame)) {
+                            that._emitEvent("frame", frame);
+                        }
+                    }               
+                } catch (e) {
+                    if ( e.message && e.message.includes("LIBUSB_TRANSFER_TIMED_OUT")) {
+                        console.log("readCanFrame timeout");
+                    } else {
+                        console.log("readCanFrame failed ", e);
                     }
-                }               
-            } catch (e) {
-                if ( e.message && e.message.includes("LIBUSB_TRANSFER_TIMED_OUT")) {
-                    console.log("readCanFrame timeout");
-                } else {
-                    console.log("readCanFrame failed ", e);
                 }
-            }
-            if ( that.streamCanFrames ) {
-                that.startStreamingCANFrmes(frame);
-            } else {
-                console.log("Reading stopped");
-                that._emitEvent("stopped_reading");
-            }
-        }, 0);
+                that._streamCANFrames(frame);
+            }, 0);            
+        } else {
+            console.log(`Streaming Ends started:${this.started} streaming:${this.streamCanFrames}`);
+            this.streamCanFrames = false;
+            this._emitEvent("stopped_reading");
+        }
     }
     /**
      * Stop streaming frames

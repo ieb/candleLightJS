@@ -9,20 +9,20 @@ const webusb = new usb.WebUSB({
     allowAllDevices: true
 });
 
-
-const checkState = async () => {
+const showDevices = async () => {
     const devices = await webusb.getDevices();
-    const text = devices.map(d => `${d.vendorId}\t${d.productId}\t${d.serialNumber || '<no serial>'}`);
-    text.unshift('VID\tPID\tSerial\n-------------------------------------');
-    console.log("USB Devices ",text.join('\n'));
+    const text = devices.map(d => `${d.vendorId}\t${d.productId}\t${d.serialNumber || '<no serial>'}\t${d.productName}`);
+    text.unshift('VID\tPID\tSerial\tProductName\n-------------------------------------');
 
+    console.log("USB Devices ",text.join('\n'));
 };
 
 
-checkState().then( async () => {
+
+showDevices().then( async () => {
   console.log("Done");
 
-
+/*
   try {
     console.log(GSUsb);
     const gs_usb = new GSUsb(GSUsb.GS_DEVICE_FLAGS.listenOnly);
@@ -34,4 +34,5 @@ checkState().then( async () => {
     console.log("oops",err);
     // No device was selected.
   }
+  */
 });

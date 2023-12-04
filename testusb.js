@@ -84,7 +84,6 @@ showDevices().then( async () => {
     gs_usb.startStreamingCANFrmes();
 
     const shutdown = async () => {
-        await gs_usb.stopStreamingCANFrames();
         await gs_usb.stop();
     };
     // eslint-disable-next-line no-unused-vars
