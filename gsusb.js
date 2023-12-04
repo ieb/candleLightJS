@@ -384,26 +384,30 @@ rc = usb_control_msg_recv(udev, 0,
             console.log("No device found");
             return;
         }
-        this.started = false;
+        const out = new DataView(new ArrayBuffer(8));
+        out.setUint32(0,0x00, true); // reset 
+        out.setUint32(4,0x00, true); // clear all flags. see defice_flags
+
+        if ( await this._controlWrite(GSUSBConstants.GS_USB_BREQ.mode, out.buffer)) {
+            console.log("Stopped CAN Ok");
+        } else {
+            console.log("Failed to stop");
+        }
+
+
         const that = this;
 
         // wait for 1s before closing to allow any pending requests to stop.
         return new Promise((resolve, reject) => {
-            setTimeout(async () => {
-                try {
-                    const out = new DataView(new ArrayBuffer(8));
-                    out.setUint32(0,0x00, true); // reset 
-                    out.setUint32(4,0x00, true); // clear all flags. see defice_flags
-
-                    if ( await that._controlWrite(GSUSBConstants.GS_USB_BREQ.mode, out.buffer)) {
-                        console.log("Stopped CAN Ok");
-                    } else {
-                        console.log("Failed to stop");
-                    }
+            console.log("Wait 5s to drain messages");
+            setTimeout(() => {
+              this.started = false;
+              console.log("Wait 1s for timeouts to complete");
+              setTimeout(async () => {
+               try {
 
                     console.log("Releasing Interface");
                     await that.gs_usb.releaseInterface(0);
-
                     console.log("Done resetting Device");
                     await that.gs_usb.close();
 
@@ -412,8 +416,9 @@ rc = usb_control_msg_recv(udev, 0,
                     console.log("Stop Failed ",e);
                     reject(e);
                 }
+                }, 1000);
 
-            }, 1000)
+            }, 5000);
         });
 
 
