@@ -80,7 +80,7 @@ class PGN127488_RapidEngineData extends CANMessage{
             pgn: 127488,
             message: "RapidEngineData",
             engineInstance: this.getByte(message,0),
-            engineSpeed: this.get2ByteUDouble(message,1 ,0.25),
+            engineSpeed: this.get2ByteUDouble(message,1 ,0.25), // RPM
             engineBoostPressure: this.get2ByteUDouble(message, 3,100),
             engineTiltTrim: this.getByte(message,5)
         }

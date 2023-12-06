@@ -88,8 +88,9 @@ class GSUSBConstants {
         set_termination: { request: 12, len:  4,       write: true },
         get_termination: { request: 13, len: 4,        read:  true },
         get_state:       { request: 14, len: undefined             }, // generally not implemented
-        setfilter:       { request: 32, len: 8,        write: true }, // custom firware required, not standard gs_usb
-        readfilter:      { request: 33, len: 8,        read: true  }, // custom firware required, not standard gs_usb
+        setfilter:       { request: 32, len: 8,        write: true }, // custom firmware required, not standard gs_usb
+        readfilter:      { request: 33, len: 8,        read: true  }, // custom firmware required, not standard gs_usb
+        readMetrics:     { request: 34, len: 16,        read: true  }, // custom firmware required, not standard gs_usb
     };
 
     static GS_USB_FILTER_TYPE = {
@@ -398,6 +399,10 @@ rc = usb_control_msg_recv(udev, 0,
         const that = this;
 
         // wait for 1s before closing to allow any pending requests to stop.
+        // the js layers down to libusb do not have a clean way of cancelling a transfer
+        // in the same way that a URB can be canceled in the kernel.
+        // Failure to drain messages away from the firmware will leave it in a bad state
+        // where it cannot be used again without 
         return new Promise((resolve, reject) => {
             console.log("Wait 5s to drain messages");
             setTimeout(() => {
@@ -458,6 +463,39 @@ rc = usb_control_msg_recv(udev, 0,
             console.log("Failed to get capabilities ");
             return undefined;
         }
+    }
+/*
+struct gs_metrics {
+    u16 main_loop; // count of iterations round the main loop in main.c
+    u16 send_to_host; // calls to send to host in main.c
+    u16 recv;  // count of frame ready to goto host in main.c
+    u16 no_recv; // count of no receive in main.c
+    u16 no_pool_frame; // count of no pool frame available in main.c
+    u16 error; // count of errors sent to host in main.c
+    u16 no_error; // count of times no error was detected.
+    u16 spare;
+}  __packed __aligned(4);
+// 16
+
+*/
+    async readMetrics() {
+        const data = await this._controlRead(GSUSBConstants.GS_USB_BREQ.readMetrics);
+        if ( data != undefined ) {
+            return {
+                main_loop: data.getUint16(0,true),
+                send_to_host: data.getUint16(2,true),
+                recv: data.getUint16(4,true),
+                no_recv: data.getUint16(6,true),
+                no_pool_frame: data.getUint16(8,true),
+                error: data.getUint16(10,true),
+                no_error: data.getUint16(12,true),
+                spare: data.getUint16(14,true),
+            }
+        } else {
+            console.log("Failed to get readMetrics ");
+            return undefined;
+        }
+
     }
 
     /**

@@ -81,13 +81,41 @@ showDevices().then( async () => {
             console.log(JSON.stringify(message));
         }
     });
+    const storedMetrics = {
+        counters: {},
+        prev: {},
+        diff: {}
+    };
+    const metricsLogger = setInterval( async () => {
+        const metrics = await gs_usb.readMetrics();
+        if ( metrics ) {
+            for (var k in metrics ) {
+                if ( storedMetrics.counters[k] === undefined) {
+                    storedMetrics.prev[k] = 0;
+                    storedMetrics.counters[k] = metrics[k];
+                } else {
+                    storedMetrics.prev[k] = storedMetrics.counters[k];
+                    storedMetrics.counters[k] = metrics[k];
+                }
+                storedMetrics.diff[k] = storedMetrics.counters[k] -  storedMetrics.prev[k];
+                if ( storedMetrics.diff[k] < 0 ) {
+                    storedMetrics.diff[k] = storedMetrics.diff[k] + 65535;
+                }
+            }
+        }
+        console.log(JSON.stringify(storedMetrics.diff));
+    }, 500);
+
     gs_usb.startStreamingCANFrmes();
+
 
     const shutdown = async () => {
         await gs_usb.stop();
+        clearInterval(metricsLogger);
     };
     // eslint-disable-next-line no-unused-vars
     process.on('exit', async (code) => {
+
         console.log("Got exit");
         await shutdown();
         console.log("Finished exit");
@@ -101,8 +129,9 @@ showDevices().then( async () => {
         process.exit();
     });
 
+
     readline.emitKeypressEvents(process.stdin);
-    process.stdin.setRawMode(true)
+    process.stdin.setRawMode(true);
 
     process.stdin.on('keypress', async (str, key) => {
         console.log("Pressed ",key);
