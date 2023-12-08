@@ -154,3 +154,18 @@ Requires custom Firmware see my candleLight_fw see https://github.com/ieb/candle
 
 Allows upto 20 filters on pgn, source, and destination. There must be 1 match from each class of filter for the message to be accepted.  if destination 0xff is defined and pgn 60928, then only broadcast ISORequests CAN packets will be sent to the USB host.
 
+
+# Device shutdown - Darwin/OSX
+
+On Darwin, it seems, if the kernel usb layer gets into a halt state, then the halt must be cleared followed 
+by a reset of the device, but using the webusb/node/libusb stack this seems impossible. The result is that 
+the kernel gets stuck with a stack of pending transfers, allocated memory blocks. It permanently tells the 
+USB device it cant accept any more transfers in, and the device runs out of transfer buffers at which point 
+it drops frames. The leds on the candleLight got fixed on. The only way to fix this is to power cycle the USB 
+to reset the darwin kernel for the device.  
+
+Or, to disble the can hardware and drain messages from the kernel so that it does not go into a hung state. Thats what the code does now.
+
+This seems to be a feature of darwin. libusb documentation mentiones it. May not happen on other os's. libusb 
+indicates it is possible to avoid, but not via WebUSB calls..... and trying resulted in segfaults.
+

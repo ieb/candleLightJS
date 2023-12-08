@@ -5,6 +5,8 @@ const usb = require('usb');
 const { GSUsb } = require('./gsusb.js');
 const { NMEA2000MessageDecoder } = require('./messages_decoder.js');
 const readline = require('readline');
+const fs = require('node:fs/promises');
+
 // https://github.com/jxltom/gs_usb/tree/master/gs_usb
 // /Users/ieb/timefields/candelLite/gs_usb
 
@@ -86,6 +88,8 @@ showDevices().then( async () => {
         prev: {},
         diff: {}
     };
+    const metricsFile = `metrics.${Date.now()}.log`;
+
     const metricsLogger = setInterval( async () => {
         const metrics = await gs_usb.readMetrics();
         if ( metrics ) {
@@ -103,7 +107,7 @@ showDevices().then( async () => {
                 }
             }
         }
-        console.log(JSON.stringify(storedMetrics.diff));
+        await fs.writeFile(metricsFile, (JSON.stringify(storedMetrics.diff))+"\n", { flag: "a"});
     }, 500);
 
     gs_usb.startStreamingCANFrmes();

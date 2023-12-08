@@ -106,15 +106,19 @@ class GSUSBConstants {
     };
 
     /**
-     * data endpoints for can frames
+     * data endpoints for can frames. 
+     * from gs_usb.h 
+     * #define GSUSB_ENDPOINT_IN  0x81
+     * #define GSUSB_ENDPOINT_OUT 0x02
      */
     static ENDPOINTS = {
-        in:  1,
-        out: 0
+        in:  1,  // Endpoint 1   0x81 when ored with directions, see gs_usb.h in FW
+        out: 2   // Endpoint 2   0x02 when ored with directions, see gs_usb.h in FW
     };
 
-    static LIBUSB_ENDPOINT_IN = 0x80;
-    static LIBUSB_ENDPOINT_OUT = 0x00;
+    // directions
+    static LIBUSB_ENDPOINT_IN = 0x80;   // device-> host
+    static LIBUSB_ENDPOINT_OUT = 0x00;  // host->device
 
 
 }
@@ -385,15 +389,6 @@ rc = usb_control_msg_recv(udev, 0,
             console.log("No device found");
             return;
         }
-        const out = new DataView(new ArrayBuffer(8));
-        out.setUint32(0,0x00, true); // reset 
-        out.setUint32(4,0x00, true); // clear all flags. see defice_flags
-
-        if ( await this._controlWrite(GSUSBConstants.GS_USB_BREQ.mode, out.buffer)) {
-            console.log("Stopped CAN Ok");
-        } else {
-            console.log("Failed to stop");
-        }
 
 
         const that = this;
@@ -403,30 +398,36 @@ rc = usb_control_msg_recv(udev, 0,
         // in the same way that a URB can be canceled in the kernel.
         // Failure to drain messages away from the firmware will leave it in a bad state
         // where it cannot be used again without 
+        await this._disableCanHrdware();
+        this.started = false;
         return new Promise((resolve, reject) => {
             console.log("Wait 5s to drain messages");
-            setTimeout(() => {
-              this.started = false;
-              console.log("Wait 1s for timeouts to complete");
-              setTimeout(async () => {
-               try {
-
-                    console.log("Releasing Interface");
-                    await that.gs_usb.releaseInterface(0);
-                    console.log("Done resetting Device");
+            setTimeout(async () => {
+                console.log("Close Device");
+                try {
                     await that.gs_usb.close();
-
+                    console.log("Done Close Device");
                     resolve();
-                } catch (e) {
-                    console.log("Stop Failed ",e);
+                } catch(e) {
+                    console.log("Close Failed ",e);
                     reject(e);
                 }
-                }, 1000);
-
             }, 5000);
         });
 
 
+    }
+
+    async _disableCanHrdware() {
+        const out = new DataView(new ArrayBuffer(8));
+        out.setUint32(0,0x00, true); // reset 
+        out.setUint32(4,0x00, true); // clear all flags. see defice_flags
+
+        if ( await this._controlWrite(GSUSBConstants.GS_USB_BREQ.mode, out.buffer)) {
+            console.log("Stopped CAN Ok");
+        } else {
+            console.log("Failed to stop");
+        }        
     }
 
     /** 
