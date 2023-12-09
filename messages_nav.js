@@ -193,7 +193,7 @@ class PGN129029 extends CANMessage {
             altitude: this.get8ByteDouble(message, 23, 1e-16), // 23+8=31
             GNSStype: NMEA2000Reference.lookup("gnssType",typeMethod&0x0f), 
             GNSSmethod: NMEA2000Reference.lookup("gnssMethod",(typeMethod>>4)&0x0f),  
-            integrety: NMEA2000Reference.lookup("gnssIntegrety",this.getByte(message, 32)&0x03), 
+            integrety: NMEA2000Reference.lookup("gnssIntegrity",this.getByte(message, 32)&0x03), 
             nSatellites: this.getByte(message, 33),
             hdop: this.get2ByteDouble(message, 34),
             pdop: this.get2ByteDouble(message, 36),
