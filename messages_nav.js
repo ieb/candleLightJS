@@ -195,8 +195,8 @@ class PGN129029 extends CANMessage {
             GNSSmethod: NMEA2000Reference.lookup("gnssMethod",(typeMethod>>4)&0x0f),  
             integrety: NMEA2000Reference.lookup("gnssIntegrity",this.getByte(message, 32)&0x03), 
             nSatellites: this.getByte(message, 33),
-            hdop: this.get2ByteDouble(message, 34),
-            pdop: this.get2ByteDouble(message, 36),
+            hdop: this.get2ByteDouble(message, 34, 0.01),
+            pdop: this.get2ByteDouble(message, 36, 0.01),
             geoidalSeparation: this.get4ByteDouble(message, 38, 0.01), //38+4=42
             nReferenceStations: nReferenceStations,
             stations: stations
