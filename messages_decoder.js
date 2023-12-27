@@ -394,10 +394,15 @@ class NMEA2000Reference {
     };
 
 
-    static lookup(name, value) {
+    static lookup(name, value) { 
         if ( NMEA2000Reference.reference[name] && NMEA2000Reference.reference[name][value] ) {
             return NMEA2000Reference.reference[name][value];
         } else {
+            if ( NMEA2000Reference.reference[name] === undefined ) {
+                console.log("Lookup Invalid type ",name);
+            } else if (  NMEA2000Reference.reference[name][value] === undefined ) {
+                console.log("Lookup missing value",name, value);
+            }
             return { type: name, id: value, name:"undefined" };
         }
     }
