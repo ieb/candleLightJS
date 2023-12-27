@@ -313,11 +313,11 @@ class NMEA2000Reference {
             1: { id: 1, name:"Yes"},
         },
         "windReference": {
-            0:  { id: 0, name:"True"},
-            1:  { id: 1, name:"Magnetic"},
+            0:  { id: 0, name:"True Ground"},
+            1:  { id: 1, name:"Magnetic Ground"},
             2:  { id: 2, name:"Apparent"},
-            3:  { id: 3, name:"True (boat referenced)"},
-            4:  { id: 4, name:"True (water referenced)"},
+            3:  { id: 3, name:"True Boat"},
+            4:  { id: 4, name:"True Water"},
         },
         "temperatureSource": {
             0: { id: 0, name:"Sea Temperature"},

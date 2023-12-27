@@ -226,7 +226,8 @@ class PGN130306 extends CANMessage {
         super();
     }
     fromMessage(message) {
-        return {
+
+        const decoded = {
             pgn: 130306,
             message: "N2K Wind",
             sid: this.getByte(message, 0),
@@ -234,6 +235,13 @@ class PGN130306 extends CANMessage {
             windAngle: this.get2ByteUDouble(message, 3, 0.0001),
             windReference: NMEA2000Reference.lookup("windReference",this.getByte(message, 5)&0x07) 
         };
+        // relative to the boat rather than a direction
+        if ( decoded.windReference.id >  1) {
+            if (decoded.windAngle > Math.PI ) {
+                decoded.windAngle = decoded.windAngle - 2*Math.PI;
+            }
+        } 
+        return decoded;
     }
 }
 
