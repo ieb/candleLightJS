@@ -267,9 +267,8 @@ rc = usb_control_msg_recv(udev, 0,
         await this.gs_usb.close();
         this.started = false;
 
-
-
     }
+
 
 
     /**
@@ -436,7 +435,7 @@ rc = usb_control_msg_recv(udev, 0,
     async identify(led) {
         const out = new DataView(new ArrayBuffer(4));
         out.setUint32(0,led);
-        await this._controlWrite(GSUSBConstants.GS_USB_BREQ.identify, out.buffer);
+        return await this._controlWrite(GSUSBConstants.GS_USB_BREQ.identify, out.buffer);
     }
 
     /**
@@ -1086,8 +1085,10 @@ struct gs_device_filter {
                 } catch (e) {
                     if ( e.message && e.message.includes("LIBUSB_TRANSFER_TIMED_OUT")) {
                         console.log("readCanFrame timeout");
+                        that._emitEvent("error",e);
                     } else {
                         console.log("readCanFrame failed ", e);
+                        that._emitEvent("error",e);
                     }
                 }
                 that._streamCANFrames(frame);
