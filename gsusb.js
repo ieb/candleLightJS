@@ -300,7 +300,10 @@ rc = usb_control_msg_recv(udev, 0,
 
         console.log("Found  ",this.gs_usb.productName );
         await this.gs_usb.open();
+        // allow the device to be stopped after here.
+        this.stopping = false;
         await this.gs_usb.reset();
+
 
 
 
@@ -384,37 +387,50 @@ rc = usb_control_msg_recv(udev, 0,
      * However this sequence only works 50% of the time. 
      */
     async stop() {
+        if (this.stopping ) {
+            return;
+        }
         if ( this.gs_usb === undefined ) {
             console.log("No device found");
             return;
         }
-
+        this.stopping = true;
 
         const that = this;
 
-        // wait for 1s before closing to allow any pending requests to stop.
-        // the js layers down to libusb do not have a clean way of cancelling a transfer
-        // in the same way that a URB can be canceled in the kernel.
-        // Failure to drain messages away from the firmware will leave it in a bad state
-        // where it cannot be used again without 
+        // stop new can messages being revived by the can interface
+        // on the usb chip
         await this._disableCanHrdware();
-        this.started = false;
-        return new Promise((resolve, reject) => {
-            console.log("Wait 5s to drain messages");
-            setTimeout(async () => {
-                console.log("Close Device");
-                try {
-                    await that.gs_usb.close();
-                    console.log("Done Close Device");
+
+        // If the transfers are canceled, then the hardware
+        // will hang in a dirty state so its vital
+        // that we drain the can device of pending messages
+        // after the can driver has been disabled.
+
+        const wait = (t) => {
+            return new Promise((resolve) => {
+                setTimeout(() => {
                     resolve();
-                } catch(e) {
-                    console.log("Close Failed ",e);
-                    reject(e);
-                }
-            }, 5000);
-        });
+                }, t);
+            })
+        }
 
-
+        // wait for 4s to allow _streamCanFrames to drain 
+        // the usb layers.
+        console.log("Wait 4s to drain messages");
+        await wait(4000);
+        // let _streamCanFrames timeout and not start.
+        this.started = false;
+        console.log("Wait 1s to stop pending frames");
+        await wait(1000);
+        // should now be ok to close the device safely and
+        // leave it in a state where it can be opened again 
+        // without having to power cycle it.
+        try {
+            await this.gs_usb.close();
+        } catch (e) {
+            console.log("Close Failed ",e);
+        }
     }
 
     async _disableCanHrdware() {
@@ -1061,7 +1077,7 @@ struct gs_device_filter {
      * Starts to stream frames emitting "frame" events
      * The frame object is static, so do not rely on it being preserved between events.
      */
-    startStreamingCANFrmes(frame) {
+    startStreamingCANFrames(frame) {
         frame = frame || new CanFrame(this.frameLength);
         this.streamCanFrames = true
         this._streamCANFrames(frame);
