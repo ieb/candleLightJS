@@ -194,6 +194,13 @@ From https://github.com/torvalds/linux/blob/master/drivers/net/can/usb/gs_usb.c#
 
     /**
      * register event handler function
+     *
+     * Events
+     * frame - payload is an frame object
+     * canpacket - payload is a DataView of the can packet
+     * error - payload is the exception or error object
+     * stopped_reading - when the driver stops reading
+     *
      */
     on(name, fn) {
         this._listeners[name] = this._listeners[name] || [];
@@ -1023,6 +1030,7 @@ struct gs_device_filter {
             endpoint.timeout = 500; // 200 ms timeout, required as the default is infinite.
             const result = await this.gs_usb.transferIn(GSUSBConstants.ENDPOINTS.in, frame.frameLength);
             if ( result.status == "ok" ) {
+                this._emitEvent("canpacket",result.data);
                 frame.fromBuffer(result.data);
                 return true;
             } else {
@@ -1094,7 +1102,7 @@ struct gs_device_filter {
                     // it goes to libusb lib_transfer_submit which returns immediately to call a callback 
                     // on success, error or timeout. Default timeout is 1s.
                     if ( await that._readCANFrame(frame) ) {
-                        if ( this._acceptMessage(frame)) {
+                        if ( that._acceptMessage(frame)) {
                             that._emitEvent("frame", frame);
                         }
                     }               

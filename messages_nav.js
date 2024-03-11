@@ -109,7 +109,8 @@ class PGN128259 extends CANMessage {
             sid: this.getByte(message, 0),
             waterReferenced: this.get2ByteDouble(message, 1, 0.01),
             groundReferenced: this.get2ByteDouble(message, 3, 0.01),
-            swrt: NMEA2000Reference.lookup("swrtType",this.getByte(message, 5)&0x0f),
+            swrt: NMEA2000Reference.lookup("swrtType",this.getByte(message, 5)),
+            speedDirection: (this.getByte(message, 6)>>4)&0x0f,
         };
     }
 }
@@ -125,7 +126,7 @@ class PGN128267 extends CANMessage {
             sid: this.getByte(message, 0),
             depthBelowTransducer: this.get4ByteUDouble(message, 1, 0.01),
             offset: this.get2ByteDouble(message, 5, 0.01),
-            range: this.get1ByteUDouble(message, 7, 10),
+            maxRange: this.get1ByteUDouble(message, 7, 10),
         };
     }
 }
@@ -324,7 +325,7 @@ class PGN130315 extends CANMessage {
             sid: this.getByte(message, 0),
             pressureInstance: this.getByte(message, 1),
             pressureSource: NMEA2000Reference.lookup("pressureSource",this.getByte(message, 2)),
-            setPressure: this.get4ByteDouble(message, 3, 0.1)        
+            setPressure: this.get4ByteUDouble(message, 3, 0.1)        
         };
     }
 }
@@ -332,6 +333,7 @@ class PGN130315 extends CANMessage {
 class PGN130316 extends CANMessage {
     constructor() {
         super();
+        this.fastPacket = true;
     }
     fromMessage(message) {
         return {
@@ -340,8 +342,8 @@ class PGN130316 extends CANMessage {
             sid: this.getByte(message, 0),
             tempInstance: this.getByte(message, 1),
             tempSource: NMEA2000Reference.lookup("temperatureSource",this.getByte(message, 2)),
-            actualTemperature: this.get3ByteDouble(message, 3, 0.001),
-            setTemperature: this.get2ByteDouble(message, 6, 0.1)
+            actualTemperature: this.get3ByteUDouble(message, 3, 0.001),
+            setTemperature: this.get2ByteUDouble(message, 6, 0.1)
         };
     }
 }
@@ -383,13 +385,142 @@ class PGN130916 extends CANMessage {
 class PGN126720 extends CANMessage {
     constructor() {
         super();
+        this.fastPacket = true;
     }
     fromMessage(message) {
-        return {
-            pgn: 126720,
-            message: "Raymarine Proprietary Backlight",
-            canmessage: message
-        };
+        const f1 = this.get2ByteUInt(message, 0);
+        const manufacturerCode = (f1 >> 5)&0x07ff;
+        const industry = (f1)&0x07;
+        const propietaryId = this.get2ByteUInt(message, 2);
+        if ( (manufacturerCode == 1851) && (industry === 4))   {
+            if ( propietaryId === 33264 ) {
+                const command = this.getByte(message, 4);
+                switch(command) {
+                    case 132:           
+                        return {
+                            pgn: 126720,
+                            message: "Raymarine Seatalk 1 Pilot Mode",
+                            canmessage: message,
+                            manufacturerCode:  NMEA2000Reference.lookup("manufacturerCode", manufacturerCode),
+                            industry: NMEA2000Reference.lookup("industry", industry),
+                            propietaryId,
+                            command,
+                            uknown1: this.getByte(message, 5),
+                            uknown2: this.getByte(message, 6),
+                            uknown3: this.getByte(message, 7),
+                            pilotMode: NMEA2000Reference.lookup("seatalkPilotMode", this.getByte(message, 8)), 
+                            subMode: this.getByte(message, 8),
+                            pilotModeData: this.getByte(message, 8),
+                            // remaining 10 bytes unknown.
+                        }
+                    case 134:
+                        return {
+                            pgn: 126720,
+                            message: "Raymarine Seatalk 1 Keystroke",
+                            canmessage: message,
+                            manufacturerCode:  NMEA2000Reference.lookup("manufacturerCode", manufacturerCode),
+                            industry: NMEA2000Reference.lookup("industry", industry),
+                            propietaryId,
+                            command,
+                            device: this.getByte(message, 5),
+                            key: NMEA2000Reference.lookup("seatalkKeystroke", this.getByte(message, 6)), 
+                            keyInverted: this.getByte(message, 7),
+                            // remaining 14 bytes unknown
+                        };
+                    case 144:
+                        return {
+                            pgn: 126720,
+                            message: "Raymarine Seatalk 1 Device Identification",
+                            canmessage: message,
+                            manufacturerCode:  NMEA2000Reference.lookup("manufacturerCode", manufacturerCode),
+                            industry: NMEA2000Reference.lookup("industry", industry),
+                            propietaryId,
+                            command,
+                            reserved: this.getByte(message, 5),
+                            deviceId: NMEA2000Reference.lookup("seatalkDeviceId", this.getByte(message, 6)), 
+
+                        };
+                    default:
+                        return {
+                            pgn: 126720,
+                            message: "Raymarine Seatalk 1 UnknownCommand",
+                            canmessage: message,
+                            manufacturerCode:  NMEA2000Reference.lookup("manufacturerCode", manufacturerCode),
+                            industry: NMEA2000Reference.lookup("industry", industry),
+                            propietaryId,
+                            command
+                        };
+                }
+
+            } else if ( propietaryId === 3212 ) {
+                const command = this.getByte(message, 6);
+                switch(command) {
+                    case 0:
+                        return {
+                            pgn: 126720,
+                            message: "Raymarine Seatalk1 Display Birghtness",
+                            canmessage: message,
+                            manufacturerCode:  NMEA2000Reference.lookup("manufacturerCode", manufacturerCode),
+                            industry: NMEA2000Reference.lookup("industry", industry),
+                            propietaryId,
+                            group:  NMEA2000Reference.lookup("seatalkNetworkGroup", this.getByte(message, 4)),
+                            unknown1: this.getByte(message, 5),
+                            command,
+                            brightness: this.getByte(message, 7),
+                            unknown2: this.getByte(message, 8),
+                        };
+                    case 1:
+                        return {
+                            pgn: 126720,
+                            message: "Raymarine Seatalk1 Display Color",
+                            canmessage: message,
+                            manufacturerCode:  NMEA2000Reference.lookup("manufacturerCode", manufacturerCode),
+                            industry: NMEA2000Reference.lookup("industry", industry),
+                            propietaryId,
+                            group:  NMEA2000Reference.lookup("seatalkNetworkGroup", this.getByte(message, 4)),
+                            unknown1: this.getByte(message, 5),
+                            command,
+                            color: NMEA2000Reference.lookup("seatalkDisplayColor", this.getByte(message, 7)),
+                            unknown2: this.getByte(message, 8),
+                        };
+                    default:
+                        return {
+                            pgn: 126720,
+                            message: "Raymarine Seatalk1 Unknown 3212 ",
+                            canmessage: message,
+                            manufacturerCode:  NMEA2000Reference.lookup("manufacturerCode", manufacturerCode),
+                            industry: NMEA2000Reference.lookup("industry", industry),
+                            propietaryId,
+                            group:  NMEA2000Reference.lookup("seatalkNetworkGroup", this.getByte(message, 4)),
+                            unknown1: this.getByte(message, 5),
+                            command,
+                            value: this.getByte(message, 7),
+                            unknown2: this.getByte(message, 8),
+                        };
+                }
+            } else {
+                return {
+                    pgn: 126720,
+                    message: "Unknown Raymarine Proprietary message",
+                    canmessage: message,
+                    manufacturerCode:  NMEA2000Reference.lookup("manufacturerCode", manufacturerCode),
+                    industry: NMEA2000Reference.lookup("industry", industry),
+                    propietaryId,
+                };
+
+
+            }
+        } else {
+            return {
+                pgn: 126720,
+                message: "Unknown Proprietary message",
+                canmessage: message,
+                manufacturerCode:  NMEA2000Reference.lookup("manufacturerCode", manufacturerCode),
+                industry: NMEA2000Reference.lookup("industry", industry),
+                propietaryId,
+            };
+        }
+
     }
 }
 
@@ -397,6 +528,7 @@ class PGN127237 extends CANMessage {
 
     constructor() {
         super();
+        this.fastPacket = true;
     }
     fromMessage(message) {
         const v1 = this.getByte(message, 0);
@@ -432,11 +564,30 @@ class PGN65359 extends CANMessage {
         super();
     }
     fromMessage(message) {
-        return {
-            pgn: 65359,
-            message: "Raymarine Seatalk Pilot Heading",
-            canmessage: message
-        };
+        const f1 = this.get2ByteUInt(0);
+        if ( (((f1 >> 5)&0x07ff == 1851) && ((f1)&0x07 === 4)) )  {
+            return {
+                pgn: 65359,
+                message: "Raymarine Seatalk Pilot Heading",
+                canmessage: message,
+                manufacturerCode: (f1 >> 5)&0x07ff, // should be 1851 == Raymarine
+                reserved1: (f1>>3)&0x03,
+                industry: (f1)&0x07,
+                propietaryId: this.getByte(2),
+                variant: this.getByte(3),
+                status: this.getByte(4)
+            };
+
+        } else {
+            return {
+                pgn: 65359,
+                message: "Unknown Proprietary",
+                canmessage: message,
+                manufacturerCode: (f1 >> 5)&0x07ff, 
+                reserved1: (f1>>3)&0x03,
+                industry: (f1)&0x07
+            };
+        }
     }
 }
 
@@ -445,11 +596,30 @@ class PGN65379 extends CANMessage {
         super();
     }
     fromMessage(message) {
-        return {
-            pgn: 65379,
-            message: "Raymarine Seatalk Pilot Heading 2",
-            canmessage: message
-        };
+        const f1 = this.get2ByteUInt(0);
+        if ( (((f1 >> 5)&0x07ff == 1851) && ((f1)&0x07 === 4)) )  {
+            return {
+                pgn: 65379,
+                message: "Raymarine Seatalk Pilot Heading 2",
+                canmessage: message,
+                manufacturerCode: (f1 >> 5)&0x07ff, // should be 1851 == Raymarine
+                reserved1: (f1>>3)&0x03,
+                industry: (f1)&0x07, // should be 4
+                pilotMode: this.get2ByteUInt(2),
+                subMode: this.get2ByteUInt(4),
+                pilotModeData: this.getByte(6)
+            };
+        } else {
+            return {
+                pgn: 65379,
+                message: "Unknown Proprietary",
+                canmessage: message,
+                manufacturerCode: (f1 >> 5)&0x07ff, 
+                reserved1: (f1>>3)&0x03,
+                industry: (f1)&0x07
+            };
+
+        }
     }
 }
 
@@ -458,11 +628,26 @@ class PGN65384 extends CANMessage {
         super();
     }
     fromMessage(message) {
-        return {
-            pgn: 65384,
-            message: "Raymarine Seatalk Pilot Heading 3",
-            canmessage: message
-        };
+        if ( (((f1 >> 5)&0x07ff == 1851) && ((f1)&0x07 === 4)) )  {
+            return {
+                pgn: 65384,
+                message: "Raymarine Seatalk Pilot Heading 3",
+                canmessage: message,
+                manufacturerCode: (f1 >> 5)&0x07ff, // should be 1851 == Raymarine
+                reserved1: (f1>>3)&0x03,
+                industry: (f1)&0x07, // should be 4
+                // rest is unknown.
+            };
+        } else {
+            return {
+                pgn: 65384,
+                message: "Unknown Proprietary",
+                canmessage: message,
+                manufacturerCode: (f1 >> 5)&0x07ff, 
+                reserved1: (f1>>3)&0x03,
+                industry: (f1)&0x07
+            };   
+        }
     }
 }
 

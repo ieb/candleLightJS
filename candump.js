@@ -63,6 +63,7 @@ showDevices().then( async () => {
             127506, // DC Status
             127508, // DC Bat status
             130312, // temp
+            130316, // ext temp
             127505, // fluid level
             127489, // Engine Dynamic params
             127488, // Engine Rapiod
@@ -83,6 +84,7 @@ showDevices().then( async () => {
             console.log(JSON.stringify(message));
         }
     });
+
     const storedMetrics = {
         counters: {},
         prev: {},
@@ -110,7 +112,7 @@ showDevices().then( async () => {
         await fs.writeFile(metricsFile, (JSON.stringify(storedMetrics.diff))+"\n", { flag: "a"});
     }, 500);
 
-    gs_usb.startStreamingCANFrmes();
+    gs_usb.startStreamingCANFrames();
 
 
     const shutdown = async () => {

@@ -60,7 +60,7 @@ class CanFrame {
         data.setUint8(10, this.flags, true);
         data.setUint8(11, this.reserved, true);
         for (var i = 0; i < 8; i++) {
-            data.setUInt8(12+i, this.data.getUint8(i, true)); // 8 bytes
+            data.setUint8(12+i, this.data.getUint8(i, true)); // 8 bytes
         }
         if ( this.frameLength == 24 ) {
             data.setUint32(20, this.timestamp_us, true);
