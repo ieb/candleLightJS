@@ -1,9 +1,10 @@
 const usb = require('usb');
-const { GSUsb } = require('./index.js');
 // https://github.com/jxltom/gs_usb/tree/master/gs_usb
 // /Users/ieb/timefields/candelLite/gs_usb
 
 
+
+// lists usb devices.
 
 const webusb = new usb.WebUSB({
     allowAllDevices: true

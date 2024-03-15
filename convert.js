@@ -5,14 +5,14 @@ const { CanPlayer } = require("./lib/canlog.js");
 
 
 
-require('./lib/messages_iso.js').register(NMEA2000MessageDecoder.messages)
-require('./lib/messages_engine.js').register(NMEA2000MessageDecoder.messages)
-require('./lib/messages_nav.js').register(NMEA2000MessageDecoder.messages)
+require('./messages_iso.js').register(NMEA2000MessageDecoder.messages)
+require('./messages_engine.js').register(NMEA2000MessageDecoder.messages)
+require('./messages_nav.js').register(NMEA2000MessageDecoder.messages)
 
 try {
     if ( process.argv.length !== 3) {
-        console.log("Usage: node testplayback.js <logfile>");
-        console.log("Will read a log file recorded by testlog.js and process the can frames into messages");
+        console.log("Usage: node convert.js <logfile>");
+        console.log("Will read a log file containing messages, reconstruct the frames and emit them.");
     } else {
         const canPlayer = new CanPlayer();
         const messageDecoder = new NMEA2000MessageDecoder();

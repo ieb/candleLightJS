@@ -2,14 +2,13 @@
 
 const process = require('node:process');
 const usb = require('usb');
-const { GSUsb } = require('./gsusb.js');
+const { GSUsb } = require('./lib/gsusb.js');
 const readline = require('readline');
-const fs = require('node:fs/promises');
-const { CanRecorder } = require('./canlog.js');
+const { CanRecorder } = require('./lib/canlog.js');
 
 
 if ( process.argv.length !== 3) {
-    console.log("Usage: node testlog.js <logfile>");
+    console.log("Usage: node capture.js <logfile>");
     console.log("Will write a log file containing frames from a gs_usb device");
     process.exit();
 }

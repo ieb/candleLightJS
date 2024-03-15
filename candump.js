@@ -2,8 +2,8 @@
 
 const process = require('node:process');
 const usb = require('usb');
-const { GSUsb } = require('./gsusb.js');
-const { NMEA2000MessageDecoder } = require('./messages_decoder.js');
+const { GSUsb } = require('./lib/gsusb.js');
+const { NMEA2000MessageDecoder } = require('./lib/messages_decoder.js');
 const readline = require('readline');
 const fs = require('node:fs/promises');
 
@@ -11,15 +11,20 @@ const fs = require('node:fs/promises');
 // /Users/ieb/timefields/candelLite/gs_usb
 
 
-require('./messages_iso.js').register(NMEA2000MessageDecoder.messages)
-require('./messages_engine.js').register(NMEA2000MessageDecoder.messages)
-require('./messages_nav.js').register(NMEA2000MessageDecoder.messages)
+require('./lib/messages_iso.js').register(NMEA2000MessageDecoder.messages)
+require('./lib/messages_engine.js').register(NMEA2000MessageDecoder.messages)
+require('./lib/messages_nav.js').register(NMEA2000MessageDecoder.messages)
 
 
 const webusb = new usb.WebUSB({
     allowAllDevices: true
 });
 
+if ( process.argv.length !== 2 ) {
+    console.log("Usage: node candump.js");
+    console.log("Dumps the can bus as processed json messages");
+    process.exit();    
+}
 
 const showDevices = async () => {
     const devices = await webusb.getDevices();
@@ -68,9 +73,14 @@ showDevices().then( async () => {
             127489, // Engine Dynamic params
             127488, // Engine Rapiod
             130314, // pressure
-            127245 // rudder
+            127245, // rudder
+            130310, // outside enviromental parameters.
+            130311,  // parameters also
+            130313,   // humidity,
+            130315   // set pressure
         ]
     };
+    filtersIn.pgnFilter = [];
 
     await gs_usb.setupDeviceFilters(filtersIn);
 

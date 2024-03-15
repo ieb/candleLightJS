@@ -22,6 +22,35 @@ without needing to write additional firmware or create hardware. Primary target 
 almost every other OS should also work. Previously the approach was to buy an expensive commercial NMEA2000->
 Serial converter ($200) or build something based on a ESP32 or Arduino.
 
+# Library Usage
+
+The user space driver is exposed as a class GSUsb. It will stream out raw frames that can be fed into decoders.
+
+Usage see candump.js
+
+
+# Commands
+
+Dump the can data stream as json messages.
+
+    node candump.js
+
+Capture the can data stream as 24byte frames with a timestamp
+
+    node capture.js <logfile.txt>
+
+Convert messages back into 24 byte frames.
+
+    node convert.js <messages.txt> <logfile.txt>
+
+List available USB devices on the current platform that user space can access, some platforms (ChromOS penguine) may not expose all.
+
+    node listusb.js
+
+Playback a log file containing 24 byte frames
+
+    node playback.js <logfile.txt>
+
 
 # TODO
 
