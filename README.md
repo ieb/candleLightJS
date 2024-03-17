@@ -63,6 +63,9 @@ Playback a log file containing 24 byte frames
 * [x] Implement NMEA2000 message decoding.
 * [x] Implement fast packet support.
 * [x] Implement message filtering in the firmware.
+* [x] Implement candump and playback to capture and playback raw packets in gs_host format. (timestamp + 24 bytes)
+* [ ] Fix conversion from message -> candump format, currently packets contain the wrong data.
+
 
 
 # Notes.
