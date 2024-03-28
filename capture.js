@@ -48,10 +48,14 @@ showDevices().then( async () => {
     gs_usb.on("frame", (frame) => {
         canRecoder.write(frame);
     });    
-    gs_usb.startStreamingCANFrames();
+
+    await gs_usb.startPolling();
+
+    // gs_usb.startStreamingCANFrames();
 
     const shutdown = async () => {
         canRecoder.close();
+        await gs_usb.stopPolling();
         await gs_usb.stop();
     };
     // eslint-disable-next-line no-unused-vars

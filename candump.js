@@ -122,10 +122,13 @@ showDevices().then( async () => {
         await fs.writeFile(metricsFile, (JSON.stringify(storedMetrics.diff))+"\n", { flag: "a"});
     }, 500);
 
-    gs_usb.startStreamingCANFrames();
+    await gs_usb.startPolling();
+
+    //gs_usb.startStreamingCANFrames();
 
 
     const shutdown = async () => {
+        await gs_usb.stopPolling();
         await gs_usb.stop();
         clearInterval(metricsLogger);
     };

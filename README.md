@@ -64,7 +64,8 @@ Playback a log file containing 24 byte frames
 * [x] Implement fast packet support.
 * [x] Implement message filtering in the firmware.
 * [x] Implement candump and playback to capture and playback raw packets in gs_host format. (timestamp + 24 bytes)
-* [ ] Fix conversion from message -> candump format, currently packets contain the wrong data.
+* [x] Fix conversion from message -> candump format, currently packets contain the wrong data.
+* [x] Switch to using libusb endpoint polling rather than recursively calling the transferIn mechanism. The approach is effectively the same except using libusb endpoint polling makes use of threads inside libusb to handle the usb interface which results in lower CPU load as the bandwidth increases. For low CANBus traffic levels it probably doesnt matter. Testing on  macOS the node process drops from about 10% CPU to 2% CPU.
 
 
 
@@ -200,4 +201,6 @@ Or, to disble the can hardware and drain messages from the kernel so that it doe
 
 This seems to be a feature of darwin. libusb documentation mentiones it. May not happen on other os's. libusb 
 indicates it is possible to avoid, but not via WebUSB calls..... and trying resulted in segfaults.
+
+Switching to performing the polling inside libusb has made this area more reliable and the JS code is simpler.
 
